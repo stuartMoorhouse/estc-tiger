@@ -63,6 +63,9 @@ htmlcov/
 # pyenv
 .python-version
 
+# UV lock file
+uv.lock
+
 # Database
 *.db
 *.sqlite3
