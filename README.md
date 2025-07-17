@@ -1,80 +1,197 @@
+# ESTC Tiger 🐅
 
-This app uses the "Evaluator Optimizer" pattern and MCP to create a chatbot that uses specialised knowledge and aims to protect itself from malicous prompts. 
+ESTC Tiger is an intelligent chatbot designed to help Elastic (ESTC) RSU holders make informed investment decisions. The app combines AI-powered analysis with comprehensive financial data to provide actionable insights about ESTC stock performance, market trends, and RSU timing strategies.
 
+## Features
+
+- **Conversation Memory**: Maintains context across multiple exchanges for natural dialogue
+- **Source Citations**: All data-driven insights include citations to specific documents
+- **Comprehensive Data**: Combines AI training knowledge with real-time Elasticsearch data
+- **Security-First**: Built with robust security evaluators to prevent malicious prompts
+- **RSU-Focused**: Specifically designed for RSU holders with relevant metrics and advice
+
+## Architecture
+
+The app uses the "Evaluator Optimizer" pattern with MCP (Model Context Protocol) integration:
+
+```
 User Query → Security Evaluator → Generator (Claude + Elasticsearch MCP) → Output Evaluator → Response
      ↓              ↓                        ↓                           ↓
   Block/Allow    Jailbreak       Elasticsearch Query          Quality Check
   Decision      Detection        & Tool Use                   & Refinement
+```
 
+## Prerequisites
 
-## Set up project
-uv add flask anthropic python-dotenv aiohttp requests
+- Python 3.12 or higher
+- UV package manager
+- Elasticsearch cluster (optional - app works with fallback data)
+- Anthropic API key
 
-## add the financial data
+## Installation & Setup
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/stuartMoorhouse/estc-tiger.git
+cd estc-tiger
+```
+
+### 2. Install Dependencies
+
+```bash
+uv sync
+```
+
+### 3. Environment Configuration
+
+Create a `.env` file in the project root:
+
+```bash
+# Required: Anthropic API key
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+# Optional: Elasticsearch configuration
+ELASTICSEARCH_URL=http://localhost:9200
+ELASTICSEARCH_USERNAME=elastic
+ELASTICSEARCH_PASSWORD=your_password
+# OR use API key authentication:
+# ELASTICSEARCH_API_KEY=your_api_key_here
+```
+
+### 4. Elasticsearch Setup (Optional)
+
+If you want to use live Elasticsearch data instead of the fallback dataset:
+
+#### Option A: Local Elasticsearch
+```bash
+# Start Elasticsearch with Docker
+docker run -d \
+  --name elasticsearch \
+  -p 9200:9200 \
+  -e "discovery.type=single-node" \
+  -e "xpack.security.enabled=false" \
+  elasticsearch:8.11.0
+```
+
+#### Option B: Elastic Cloud
+1. Sign up for [Elastic Cloud](https://cloud.elastic.co)
+2. Create a deployment
+3. Get your cluster endpoint and API key
+4. Update the `.env` file with your credentials
+
+### 5. Load Financial Data
+
+Load the ESTC financial dataset into Elasticsearch:
+
+```bash
+# Using curl with API key authentication
 curl -X POST "${ELASTICSEARCH_URL}/_bulk" \
   -H "Content-Type: application/x-ndjson" \
   -H "Authorization: ApiKey ${ELASTICSEARCH_API_KEY}" \
   --data-binary @estc_es9_bulk.json
 
+# OR using basic authentication
+curl -X POST "${ELASTICSEARCH_URL}/_bulk" \
+  -H "Content-Type: application/x-ndjson" \
+  -u "${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
+  --data-binary @estc_es9_bulk.json
+```
 
-## Start the app
-uv run python app.py
+### 6. Run the Application
 
+```bash
+uv run python web/app.py
+```
 
+The app will start on `http://localhost:5000`
 
-## data provenance
-This ESTC financial dataset was compiled on January 17, 2025 by Claude Sonnet 4 (model: claude-sonnet-4-20250514) through comprehensive web research of authoritative sources including SEC filings, earnings reports, investor relations materials, and market analysis from 2018-2025, specifically designed to support RSU holder decision-making through MCP-enabled chatbot interactions, created in response to the prompt: "A chatbot to help people who get Elastic (ESTC) RSOs every quarter. Is there some information about Elastic that I could put into the Elasticsearch instance to help make this use case better? I want to search for that info with the MCPlink."
+## Usage
 
+1. **Open your browser** and navigate to `http://localhost:5000`
+2. **Start chatting** with ESTC Tiger about:
+   - ESTC financial performance and metrics
+   - Stock price analysis and trends
+   - RSU timing and tax strategies
+   - Competitive landscape analysis
+   - Market conditions and outlook
 
-Data Summary & Sources
-Data Coverage
+3. **Example questions**:
+   - "What's ESTC's current revenue growth rate?"
+   - "How does ESTC compare to Datadog?"
+   - "Should I sell my RSUs now or wait?"
+   - "What are the analyst price targets for ESTC?"
 
-Time Period: 2018-2025 (7 years since IPO)
-Total Records: 150+ documents across 25+ indices
-Data Categories: Financial, competitive, product, market, RSU-specific
+## Data Sources
 
-Key Data Sources
-Primary Financial Data
+The app includes comprehensive ESTC financial data from:
+- SEC filings and earnings reports
+- Analyst ratings and price targets
+- Historical stock performance (2018-2025)
+- Competitive analysis vs. Datadog, Splunk
+- RSU vesting schedules and tax implications
+- Product milestones and market positioning
 
-MacroTrends: Historical revenue data from 2018-2025 Elastic (ESTC) Statistics & Valuation
-Elastic Investor Relations: Official quarterly earnings reports The Motley FoolThe Motley Fool
-Meritech Capital: IPO S-1 breakdown and early financial metrics Elastic NV (ESTC) - Revenue
+**Data Coverage**: 150+ documents across 25+ indices spanning 7 years since IPO
 
-Stock Performance Data
+## Troubleshooting
 
-CNBC: IPO performance and debut trading data Elastic (ESTC) Earnings Date and Reports 2025 $ESTC
-MacroTrends: 7-year stock price history with all-time highs/lows Elastic NV Earnings: ESTC Quarterly Earnings Calendar (2022)
-Stock Analysis: Current trading statistics and valuation metrics
+### App won't start
+- Check that your `.env` file has the correct `ANTHROPIC_API_KEY`
+- Ensure Python 3.12+ is installed
+- Try `uv sync` to reinstall dependencies
 
-Competitive Intelligence
+### No Elasticsearch data
+- The app works with fallback data if Elasticsearch is unavailable
+- Check your Elasticsearch URL and credentials
+- Verify the bulk data was loaded successfully
 
-Zacks/Yahoo Finance: DDOG vs ESTC competitive analysis Elastic - 7 Year Stock Price History | ESTC | MacroTrends
-Seeking Alpha: Competitive positioning concerns and analysis Elastic (ESTC) Stock Price & Overview
-Software Stack Investing: Detailed competitive landscape review Elastic — The Search AI Company | Elastic
+### API errors
+- Verify your Anthropic API key is valid and has credits
+- Check network connectivity
+- Review the console logs for specific error messages
 
-Market Recognition & Analysis
+## Development
 
-TipRanks: Analyst consensus and earnings call summaries Elastic (ESTC): Undervalued But Competitive Position Is Concerning | Seeking Alpha
-Motley Fool: Q3 and Q4 2024 earnings call transcripts SoftwarestackinvestingCSIMarket
-Elastic.co: Official company product announcements and market position Elastic N.V. Ordinary Shares (ESTC) Stock Price, News, Quotes, & Historic Data | Nasdaq
+### Project Structure
+```
+estc-tiger/
+├── agent/                  # Core AI components
+│   ├── evaluators/        # Security and output evaluators
+│   └── generators/        # Claude + Elasticsearch integration
+├── shared/                # Shared utilities
+│   ├── conversation_memory.py
+│   ├── ecs_logger.py
+│   └── elasticsearch_client.py
+├── web/                   # Flask web application
+│   ├── app.py
+│   ├── static/           # CSS, images
+│   └── templates/        # HTML templates
+├── estc_es9_bulk.json    # Financial dataset
+└── pyproject.toml        # Dependencies
+```
 
-Company Background
+### Running Tests
+```bash
+# Add test dependencies
+uv add --dev pytest pytest-asyncio
 
-Wikipedia: Company history, acquisitions, and founding story
-Stock Titan: Recent product launches and partnership announcements DDOG vs. ESTC: Which Cloud Observability Stock is the Better Buy?
+# Run tests
+uv run pytest
+```
 
-Data Methodology
+## Contributing
 
-Historical Accuracy: All financial data cross-referenced with SEC filings
-Real-time Updates: Stock prices and analyst data current as of search date
-Comprehensive Coverage: 10 major data categories from financial to competitive
-RSU-Specific Focus: Includes vesting schedules, tax implications, and scenarios
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-Data Quality Notes
+## License
 
-Pre-IPO Data: Limited to S-1 filing information (company was private)
-Projections: Forward-looking estimates based on current analyst consensus
-Assumptions: Some granular metrics estimated from available ranges
-Currency: All financial data in USD millions unless specified
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-This dataset provides RSU holders with institutional-grade analysis capabilities, combining official company data with market intelligence and competitive insights all searchable through your MCP-enabled chatbot!
+## Disclaimer
+
+This tool is for informational purposes only and does not constitute financial advice. Always consult with qualified financial professionals before making investment decisions.
