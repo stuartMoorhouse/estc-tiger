@@ -24,15 +24,21 @@
 </head>
 <body>
     <div class="container">
-        <div class="tiger-section">
-            <img src="{{ url_for('static', filename='estc-tiger.jpg') }}" alt="Tiger" class="tiger-image">
-            <div class="agent-info">
-                <h3>Ask the Tiger</h3>
-                <p>Buy, sell, HODL?</p>
-            </div>
+        <div class="header-section">
+            <img src="{{ url_for('static', filename='elastic-logo.jpg') }}" alt="Elastic Logo" class="elastic-logo">
+            <h1>ESTC Tiger</h1>
         </div>
         
-        <div class="chat-section">
+        <div class="main-content">
+            <div class="tiger-section">
+                <img src="{{ url_for('static', filename='estc-tiger.jpg') }}" alt="Tiger" class="tiger-image">
+                <div class="agent-info">
+                    <h3>Ask the Tiger</h3>
+                    <p>Buy, sell, HODL?</p>
+                </div>
+            </div>
+            
+            <div class="chat-section">
             <div class="chat-messages" id="chatMessages">
                 <div class="message agent-message">
                     <span class="message-icon">🐅</span>
@@ -47,6 +53,7 @@
                 <button id="sendButton">Send</button>
                 <button id="clearButton" class="clear-button">Clear History</button>
             </div>
+        </div>
         </div>
     </div>
 
