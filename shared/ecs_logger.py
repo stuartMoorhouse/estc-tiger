@@ -8,7 +8,7 @@ import os
 class ECSLogger:
     """
     Logger that writes events in Elastic Common Schema (ECS) format.
-    Tracks function calls, MCP server interactions, and security events.
+    Tracks function calls, API interactions, and security events.
     """
     
     def __init__(self, log_file: str = "estc-tiger.json"):
@@ -102,8 +102,8 @@ class ECSLogger:
         self._write_event(event)
     
     def log_elasticsearch_generation(self, query_id: str, query: str, response: str, 
-                                   duration_ms: int, mcp_calls: Optional[List[Dict[str, Any]]] = None):
-        """Log Elasticsearch generation with MCP server details"""
+                                   duration_ms: int, api_calls: Optional[List[Dict[str, Any]]] = None):
+        """Log Elasticsearch generation with API call details"""
         event = self._create_base_event("elasticsearch_generation", 
                                        f"Generated response using Claude + Elasticsearch")
         
@@ -115,16 +115,16 @@ class ECSLogger:
             "stage": "generation",
             "function_called": "ElasticsearchGenerator.generate",
             "response_length": len(response),
-            "mcp_calls": mcp_calls or []
+            "api_calls": api_calls or []
         }
         
-        # Add Elasticsearch-specific data if MCP calls were made
-        if mcp_calls:
+        # Add Elasticsearch-specific data if API calls were made
+        if api_calls:
             event["elasticsearch"] = {
                 "calls": []
             }
             
-            for call in mcp_calls:
+            for call in api_calls:
                 es_call = {
                     "index": call.get("index", "unknown"),
                     "operation": call.get("operation", "search"),

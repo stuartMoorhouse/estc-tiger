@@ -6,14 +6,14 @@ import os
 
 class ElasticsearchGenerator:
     """
-    Generator component that integrates Claude with Elasticsearch MCP tools for ESTC analysis.
+    Generator component that integrates Claude with Elasticsearch for ESTC analysis.
     """
     
     def __init__(self):
         self.anthropic_client = Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
         self.model = "claude-3-5-sonnet-20241022"  # Updated to more recent model
         
-        # ESTC-specific MCP tools
+        # ESTC-specific data tools
         self.available_tools = [
             {
                 "name": "search",

@@ -20,7 +20,7 @@ try:
     from agent.generators.elasticsearch_generator import ElasticsearchGenerator
     from agent.evaluators.output_evaluator import OutputEvaluator
     from shared.ecs_logger import logger
-    from shared.conversation_memory import conversation_memory
+    from shared.conversation_memory import conversation_manager
     
     # Initialize components
     security_evaluator = SecurityEvaluator()
@@ -45,7 +45,7 @@ def get_estc_stock():
     try:
         finnhub_key = os.getenv('FINNHUB_API_KEY')
         if not finnhub_key:
-            return jsonify({'error': 'Finnhub API key not found'}), 500
+            return jsonify({'error': 'Stock data service configuration not available'}), 500
         
         # Get current price
         current_url = f"https://finnhub.io/api/v1/quote?symbol=ESTC&token={finnhub_key}"
@@ -83,10 +83,10 @@ def get_estc_stock():
                 'changePercent': current_data.get('dp', 0)  # change percent
             })
         else:
-            return jsonify({'error': 'Failed to get historical data'}), 500
+            return jsonify({'error': 'Stock data service temporarily unavailable'}), 500
             
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'Stock data service error'}), 500
 
 @app.route('/chat', methods=['POST'])
 def chat():
@@ -106,7 +106,7 @@ def chat():
             return jsonify({'success': False, 'error': 'No message provided'})
         
         # Run the evaluator-optimizer workflow
-        result = asyncio.run(run_workflow(user_message, session_id))
+        result = asyncio.run(process_query_pipeline(user_message, session_id))
         
         return jsonify({
             'success': True,
@@ -131,8 +131,8 @@ def get_conversation():
             return jsonify({'success': False, 'error': 'No session_id provided'})
         
         # Get conversation history
-        history = conversation_memory.get_conversation_history(session_id)
-        session_info = conversation_memory.get_session_info(session_id)
+        history = conversation_manager.get_conversation_history(session_id)
+        session_info = conversation_manager.get_session_info(session_id)
         
         return jsonify({
             'success': True,
@@ -157,7 +157,7 @@ def clear_conversation():
             return jsonify({'success': False, 'error': 'No session_id provided'})
         
         # Clear conversation history
-        cleared = conversation_memory.clear_session(session_id)
+        cleared = conversation_manager.clear_session(session_id)
         
         return jsonify({
             'success': True,
@@ -167,7 +167,7 @@ def clear_conversation():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-async def run_workflow(user_message, session_id=None):
+async def process_query_pipeline(user_message, session_id=None):
     """Run the Evaluator-Optimizer workflow with comprehensive logging"""
     start_time = time.time()
     
@@ -208,10 +208,10 @@ async def run_workflow(user_message, session_id=None):
         generator_response = await elasticsearch_generator.generate(user_message, session_id)
         generation_duration = int((time.time() - generation_start) * 1000)
         
-        # Log generation with MCP calls
-        mcp_calls = elasticsearch_generator.get_mcp_calls()
+        # Log generation with API calls
+        api_calls = elasticsearch_generator.get_api_calls()
         logger.log_elasticsearch_generation(query_id, user_message, generator_response, 
-                                          generation_duration, mcp_calls)
+                                          generation_duration, api_calls)
         
         # Stage 3: Output Evaluation
         output_start = time.time()

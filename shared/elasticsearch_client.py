@@ -8,9 +8,9 @@ from elasticsearch.exceptions import ApiError, TransportError
 
 logger = logging.getLogger(__name__)
 
-class ElasticsearchMCPClient:
+class ElasticsearchService:
     """
-    MCP client for Elasticsearch integration.
+    Client for Elasticsearch integration.
     Handles real queries to Elasticsearch and retrieves ESTC data.
     """
     
@@ -288,4 +288,4 @@ class ElasticsearchMCPClient:
         }
 
 # Global instance
-elasticsearch_client = ElasticsearchMCPClient()
+elasticsearch_service = ElasticsearchService()

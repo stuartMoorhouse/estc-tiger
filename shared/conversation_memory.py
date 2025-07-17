@@ -7,7 +7,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class ConversationMemory:
+class ConversationManager:
     """
     Manages conversation sessions and memory for the ESTC Tiger chatbot.
     Stores conversation history in memory with automatic cleanup.
@@ -46,7 +46,7 @@ class ConversationMemory:
             return new_session_id
     
     def add_exchange(self, session_id: str, user_query: str, assistant_response: str, 
-                    mcp_calls: List[Dict[str, Any]] = None) -> None:
+                    api_calls: List[Dict[str, Any]] = None) -> None:
         """Add a Q&A exchange to the conversation history"""
         with self.lock:
             if session_id not in self.sessions:
@@ -56,7 +56,7 @@ class ConversationMemory:
                 'timestamp': datetime.now().isoformat(),
                 'user_query': user_query,
                 'assistant_response': assistant_response,
-                'mcp_calls': mcp_calls or []
+                'api_calls': api_calls or []
             }
             
             self.sessions[session_id]['conversation_history'].append(exchange)
@@ -205,4 +205,4 @@ class ConversationMemory:
                 self.sessions[session_id]['current_price_mentioned'] = True
 
 # Global instance
-conversation_memory = ConversationMemory()
+conversation_manager = ConversationManager()
