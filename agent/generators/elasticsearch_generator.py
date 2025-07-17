@@ -54,11 +54,46 @@ class ElasticsearchGenerator:
             # Analyze query intent and retrieve relevant data
             retrieved_data = await self._retrieve_all_data(user_query)
             
+            # Check if Elasticsearch is connected, return error if not
+            if not retrieved_data.get('connection_status', False):
+                # Check if we should include current price phrase even in error case
+                if (retrieved_data.get('finnhub_data') and 
+                    session_id and 
+                    not conversation_memory.has_current_price_been_mentioned(session_id)):
+                    
+                    finnhub_data = retrieved_data.get('finnhub_data', {})
+                    current_price = finnhub_data.get('current_price', 0)
+                    conversation_memory.mark_current_price_mentioned(session_id)
+                    
+                    return f"Based on the current stock price of ${current_price:.2f} [data from finnhub.io API], I cannot provide detailed ESTC analysis due to Elasticsearch connection issues. Please check the connection and try again."
+                else:
+                    return "ERROR: Elasticsearch connection not available. Cannot provide ESTC data analysis without access to the Elasticsearch data source."
+            
             # Build system message with retrieved data and conversation context
             system_message = self._build_system_message(retrieved_data, session_id)
             
             # Create user message for Claude with context
             user_message = self._build_user_message(user_query, retrieved_data, session_id)
+            
+            # Check if we should include current price phrase
+            should_include_price_phrase = (
+                retrieved_data.get('finnhub_data') and 
+                session_id and 
+                not conversation_memory.has_current_price_been_mentioned(session_id)
+            )
+            
+            # Add current price phrase instruction if needed
+            if should_include_price_phrase:
+                finnhub_data = retrieved_data.get('finnhub_data', {})
+                current_price = finnhub_data.get('current_price', 0)
+                price_phrase_instruction = f"""
+                
+                IMPORTANT: Start your response with: "Based on the current stock price of ${current_price:.2f} [data from finnhub.io API], " and then continue with your analysis.
+                """
+                system_message += price_phrase_instruction
+                
+                # Mark current price as mentioned immediately to prevent duplicate usage
+                conversation_memory.mark_current_price_mentioned(session_id)
             
             # Call Claude to generate response
             response = await self._call_claude_api(system_message, user_message)
@@ -115,14 +150,16 @@ class ElasticsearchGenerator:
             data_context = """
         
         BASELINE DATA CONTEXT:
-        - Current revenue: $1.48B (+17% YoY)
-        - Current stock price: $85.71
-        - Analyst target: $115.74 (35% upside)
-        - Cloud revenue growth: 30% YoY
-        - GenAI customers: 1,750+
-        - Operating margin: 12% (non-GAAP)
+        - Current revenue: $1.48B (+17% YoY) [estc-financial-data, doc-revenue-2024]
+        - Analyst target: $115.74 (35% upside) [estc-analyst-ratings, doc-consensus-target]
+        - Cloud revenue growth: 30% YoY [estc-financial-data, doc-cloud-growth]
+        - GenAI customers: 1,750+ [estc-product-data, doc-genai-adoption]
+        - Operating margin: 12% (non-GAAP) [estc-financial-data, doc-operating-margin]
         
         This baseline data provides sufficient context for actionable investment insights.
+        All data above should be cited using the [index_name, document_id] format when used in responses.
+        
+        NOTE: Current stock price should come from Finnhub API data and be cited as [data from finnhub.io API].
         """
         
         guidelines = """
@@ -142,9 +179,10 @@ class ElasticsearchGenerator:
         - Combine training knowledge with MCP data for complete, actionable analysis
         
         Citation Requirements:
-        - After every fact or data point retrieved from the MCP server, add a citation in square brackets
-        - Citation format: [index_name, document_id]
-        - Example: "ESTC revenue is $1.48B [estc-financial-data, doc-revenue-2024]"
+        - MANDATORY: After every fact or data point retrieved from the MCP server, add a citation in square brackets
+        - For Elasticsearch data, use format: [index_name, document_id]
+        - For Finnhub data, use format: [data from finnhub.io API]
+        - Examples: "ESTC revenue is $1.48B [estc-financial-data, doc-revenue-2024]", "Current stock price is $85.71 [data from finnhub.io API]"
         - Only add citations for facts that came from the retrieved MCP data, not general knowledge
         - Citations should be placed immediately after the specific fact or statistic
         - Do not cite general market knowledge or training data
@@ -177,7 +215,7 @@ class ElasticsearchGenerator:
         
         if search_results.get('results'):
             # Include retrieved data in the message
-            data_section = "\n\nRETRIEVED DATA:\n"
+            data_section = "\n\nRETRIEVED DATA FROM ELASTICSEARCH:\n"
             
             for i, result in enumerate(search_results['results'][:5]):  # Limit to top 5 results
                 source = result.get('source', {})
@@ -268,31 +306,41 @@ class ElasticsearchGenerator:
             Use specific information from the documents to support your analysis, supplemented with your general market knowledge.
             Consider the conversation context if this is a follow-up question.{context_reminder}
             
-            IMPORTANT: 
-            - Add citations in square brackets [index_name, document_id] ONLY after facts that come from the retrieved MCP data above
-            - For stock data from Finnhub, add citation [data from finnhub.io API] after the relevant facts
-            - For fallback stock data when Finnhub fails, add citation [training data estimates (Finnhub historical data requires premium tier)] after the relevant facts
-            - When referencing historical stock data, ALWAYS include specific stock prices and dates
-            - When correlating product events with stock performance, MUST include the stock price at that time
-            - If Finnhub historical data is not available, use the fallback historical data provided (from training estimates)
-            - Do not cite general market knowledge or training data
+            CRITICAL CITATION REQUIREMENTS: 
+            - MANDATORY: Add citations in square brackets [index_name, document_id] IMMEDIATELY after ANY fact that comes from the retrieved MCP data above
+            - MANDATORY: For ALL stock data from Finnhub (current prices, historical data, etc.), add citation [data from finnhub.io API] immediately after the relevant facts
+            - MANDATORY: For ALL fallback stock data when Finnhub fails, add citation [training data estimates (Finnhub historical data requires premium tier)] immediately after the relevant facts
+            - MANDATORY: For ALL Elasticsearch data (revenue, growth, margins, etc.), add citation [index_name, document_id] immediately after the relevant facts
+            - MANDATORY: ALL current stock prices must use Finnhub data and be cited as [data from finnhub.io API] - NEVER use baseline or Elasticsearch data for current prices
+            - When referencing historical stock data, ALWAYS include specific stock prices and dates WITH citations
+            - When correlating product events with stock performance, MUST include the stock price at that time WITH citations
+            - If Finnhub historical data is not available, use the fallback historical data provided (from training estimates) WITH citations
+            - Do not cite general market knowledge or training data that you already knew
             - Use both MCP data and training knowledge to provide confident, complete analysis
             - Never mention incomplete datasets or missing data
             - Be responsive and helpful - avoid overly cautious language about accuracy
-            - For each product event mentioned, provide an estimated stock price for that timeframe
+            - For each product event mentioned, provide an estimated stock price for that timeframe WITH appropriate citations
             - Combine all available information to provide actionable investment insights
-            - Fill gaps in MCP data with relevant training knowledge (without citations)
+            - Fill gaps in MCP data with relevant training knowledge (without citations for general knowledge)
             - Reference previous exchanges when answering follow-up questions
             - CRITICAL: Every product event must be accompanied by a stock price estimate [data from finnhub.io API] or reasonable estimate based on training data
             - When Finnhub API fails, use your training knowledge to provide reasonable stock price estimates for historical periods
             - Always include specific stock prices and dates for product events, even if from training data estimates
+            
+            EXAMPLES OF PROPER CITATIONS:
+            - "Current stock price is $85.71 [data from finnhub.io API]"
+            - "ESTC is trading at $85.71 [data from finnhub.io API]"
+            - "Revenue reached $1.48B [estc-financial-data, doc-revenue-2024]"
+            - "17% year-over-year growth [estc-financial-data, doc-growth-2024]"
+            - "Operating margin of 12% [estc-financial-data, doc-margins-2024]"
+            - "Analyst consensus target of $115.74 [estc-analyst-ratings, doc-consensus-2024]"
             """
             
         else:
             # No elasticsearch data retrieved
             connection_status = retrieved_data.get('connection_status', False)
             if not connection_status:
-                data_section = "\n\nNOTE: Elasticsearch connection not available. Using general ESTC knowledge"
+                data_section = "\n\nERROR: Elasticsearch connection not available. Cannot provide ESTC data analysis."
             else:
                 data_section = "\n\nNOTE: No specific documents found for this query. Using general ESTC knowledge"
             
@@ -355,19 +403,24 @@ class ElasticsearchGenerator:
             Consider the conversation context if this is a follow-up question.{context_reminder}
             Do not use hedging language about limited data - the baseline data is sufficient for meaningful analysis.
             
-            IMPORTANT: 
-            - For stock data from Finnhub, add citation [data from finnhub.io API] after the relevant facts
-            - For fallback stock data when Finnhub fails, add citation [training data estimates (Finnhub historical data requires premium tier)] after the relevant facts
-            - When referencing historical stock data, ALWAYS include specific stock prices and dates
-            - When correlating product events with stock performance, MUST include the stock price at that time
-            - If Finnhub historical data is not available, use the fallback historical data provided (from training estimates)
-            - Do not cite general market knowledge or training data
+            CRITICAL CITATION REQUIREMENTS: 
+            - MANDATORY: For ALL stock data from Finnhub (current prices, historical data, etc.), add citation [data from finnhub.io API] immediately after the relevant facts
+            - MANDATORY: For ALL fallback stock data when Finnhub fails, add citation [training data estimates (Finnhub historical data requires premium tier)] immediately after the relevant facts
+            - MANDATORY: ALL current stock prices must use Finnhub data and be cited as [data from finnhub.io API]
+            - When referencing historical stock data, ALWAYS include specific stock prices and dates WITH citations
+            - When correlating product events with stock performance, MUST include the stock price at that time WITH citations
+            - If Finnhub historical data is not available, use the fallback historical data provided (from training estimates) WITH citations
+            - Do not cite general market knowledge or training data that you already knew
             - Be responsive and helpful - avoid overly cautious language about accuracy
-            - For each product event mentioned, provide an estimated stock price for that timeframe
+            - For each product event mentioned, provide an estimated stock price for that timeframe WITH appropriate citations
             - Reference previous exchanges when answering follow-up questions
             - CRITICAL: Every product event must be accompanied by a stock price estimate [data from finnhub.io API] or reasonable estimate based on training data
             - When Finnhub API fails, use your training knowledge to provide reasonable stock price estimates for historical periods
             - Always include specific stock prices and dates for product events, even if from training data estimates
+            
+            EXAMPLES OF PROPER CITATIONS:
+            - "Current stock price is $85.71 [data from finnhub.io API]"
+            - "ESTC is trading at $85.71 [data from finnhub.io API]"
             """
         
         return base_message + data_section + instruction
@@ -503,7 +556,14 @@ class ElasticsearchGenerator:
             if keyword in query_lower and 'stock' in query_lower:
                 return 'current'
         
-        return 'none'
+        # For any stock-related query (like selling decisions), always include current data
+        stock_decision_keywords = ['sell', 'buy', 'hold', 'invest', 'position', 'shares', 'rsu', 'decision']
+        for keyword in stock_decision_keywords:
+            if keyword in query_lower:
+                return 'current'
+        
+        # Since this is an ESTC stock analysis system, always include current stock data by default
+        return 'current'
     
     def get_mcp_calls(self) -> List[Dict[str, Any]]:
         """Get the MCP calls made during the last generation"""

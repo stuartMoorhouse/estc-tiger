@@ -3,14 +3,8 @@ import json
 from typing import Dict, Any, List, Optional
 import logging
 
-# Try to import elasticsearch, but provide fallback if not available
-try:
-    from elasticsearch import Elasticsearch
-    from elasticsearch.exceptions import ElasticsearchException
-    ELASTICSEARCH_AVAILABLE = True
-except ImportError:
-    ELASTICSEARCH_AVAILABLE = False
-    print("Elasticsearch library not available. Using fallback mode.")
+from elasticsearch import Elasticsearch
+from elasticsearch.exceptions import ApiError, TransportError
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +22,7 @@ class ElasticsearchMCPClient:
         
         # Initialize Elasticsearch client
         self.client = None
-        if ELASTICSEARCH_AVAILABLE:
-            self._init_client()
-        
-        # Load fallback data from JSON file
-        self.fallback_data = self._load_fallback_data()
+        self._init_client()
         
         # ESTC data index mapping
         self.index_mapping = {
@@ -43,155 +33,7 @@ class ElasticsearchMCPClient:
             'general': ['estc-general-data', 'estc-company-info', 'estc-news']
         }
     
-    def _load_fallback_data(self) -> List[Dict[str, Any]]:
-        """Load ESTC data from JSON file as fallback"""
-        try:
-            # Try to load from the bulk JSON file
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            json_path = os.path.join(current_dir, '..', 'estc_es9_bulk.json')
-            
-            if os.path.exists(json_path):
-                with open(json_path, 'r') as f:
-                    lines = f.readlines()
-                    
-                # Parse NDJSON format (each line is a separate JSON object)
-                documents = []
-                for i in range(0, len(lines), 2):  # Skip index lines, take document lines
-                    if i + 1 < len(lines):
-                        try:
-                            doc = json.loads(lines[i + 1].strip())
-                            # Add metadata from index line
-                            index_line = json.loads(lines[i].strip())
-                            doc['_index'] = index_line.get('index', {}).get('_index', 'unknown')
-                            doc['_id'] = index_line.get('index', {}).get('_id', f'doc_{i}')
-                            documents.append(doc)
-                        except json.JSONDecodeError:
-                            continue
-                
-                logger.info(f"Loaded {len(documents)} documents from fallback data")
-                return documents
-            else:
-                logger.warning(f"Fallback data file not found at {json_path}")
-                return []
-                
-        except Exception as e:
-            logger.error(f"Error loading fallback data: {e}")
-            return []
     
-    def _search_fallback_data(self, query_type: str, search_terms: List[str], 
-                            limit: int = 10) -> Dict[str, Any]:
-        """Search fallback data when Elasticsearch is not available"""
-        if not self.fallback_data:
-            return {
-                "error": "No fallback data available",
-                "results": [],
-                "total": 0
-            }
-        
-        results = []
-        
-        # Simple text search in fallback data
-        for doc in self.fallback_data:
-            score = 0
-            
-            # Search in various fields
-            searchable_text = ""
-            # Include all text fields from the document
-            for field, value in doc.items():
-                if isinstance(value, str) and field not in ['_index', '_id']:
-                    searchable_text += str(value).lower() + " "
-                elif field in ['document_type', 'notes', 'status']:
-                    searchable_text += str(value).lower() + " "
-            
-            # Calculate relevance score with document type diversity
-            base_score = 0
-            for term in search_terms:
-                if term.lower() in searchable_text:
-                    base_score += 1
-            
-            # Add diversity bonus based on document type
-            doc_type_bonus = {
-                'estc-financial-data': 1.0,      # Financial data is always relevant
-                'estc-stock-data': 1.0,          # Stock data is always relevant
-                'estc-competitive-data': 0.8,    # Competitive data is important
-                'estc-product-milestones': 0.6,  # Product milestones are relevant but not overwhelming
-                'estc-partnership-data': 0.7,    # Partnership data is valuable
-                'estc-acquisition-history': 0.5, # Acquisition history is supplementary
-                'estc-analyst-ratings': 1.0,     # Analyst ratings are highly relevant
-                'estc-rsu-data': 0.9,           # RSU data is important for RSU holders
-                'estc-news': 0.6,               # News is supplementary
-                'estc-earnings': 1.0,           # Earnings data is always relevant
-                'estc-revenue': 1.0,            # Revenue data is always relevant
-                'estc-prices': 1.0,             # Price data is always relevant
-                'estc-general-data': 0.8,       # General data is broadly relevant
-                'estc-company-info': 0.7        # Company info is supportive
-            }
-            
-            index_name = doc.get('_index', 'unknown')
-            diversity_bonus = doc_type_bonus.get(index_name, 0.5)
-            
-            # Apply base score with diversity bonus
-            score = base_score * diversity_bonus
-            
-            # Add query type bonus if relevant
-            if query_type != 'general':
-                type_keywords = {
-                    'financial': ['revenue', 'earnings', 'financial', 'growth', 'profit', 'margin'],
-                    'stock': ['stock', 'price', 'analyst', 'rating', 'target', 'valuation'],
-                    'competitive': ['datadog', 'splunk', 'competitor', 'competitive', 'market share'],
-                    'rsu': ['rsu', 'equity', 'compensation', 'vesting', 'shares']
-                }
-                
-                type_terms = type_keywords.get(query_type, [])
-                type_bonus = 0
-                for term in type_terms:
-                    if term in searchable_text:
-                        type_bonus += 0.3
-                
-                score += type_bonus
-            
-            if score > 0:
-                results.append({
-                    "index": doc.get('_index', 'fallback'),
-                    "document_id": doc.get('_id', 'unknown'),
-                    "score": score,
-                    "source": doc,
-                    "type": doc.get('type', 'unknown')
-                })
-        
-        # Sort by score and limit results with diversity
-        results.sort(key=lambda x: x["score"], reverse=True)
-        
-        # Apply diversity filtering to ensure we get different types of documents
-        diverse_results = []
-        seen_indices = set()
-        
-        # First pass: get top results from different indices
-        for result in results:
-            index_name = result["index"]
-            if index_name not in seen_indices:
-                diverse_results.append(result)
-                seen_indices.add(index_name)
-                if len(diverse_results) >= min(limit, 6):  # Ensure diversity in top 6
-                    break
-        
-        # Second pass: fill remaining slots with highest scoring documents
-        for result in results:
-            if result not in diverse_results:
-                diverse_results.append(result)
-                if len(diverse_results) >= limit:
-                    break
-        
-        results = diverse_results
-        
-        return {
-            "results": results,
-            "total": len(results),
-            "query_type": query_type,
-            "search_terms": search_terms,
-            "indices_searched": ["fallback_data"],
-            "fallback_mode": True
-        }
     
     def _init_client(self):
         """Initialize Elasticsearch client with authentication"""
@@ -232,15 +74,13 @@ class ElasticsearchMCPClient:
             self.client = None
     
     def is_connected(self) -> bool:
-        """Check if Elasticsearch client is connected or fallback data is available"""
+        """Check if Elasticsearch client is connected"""
         if self.client:
             try:
                 return self.client.ping()
             except:
                 pass
-        
-        # Return True if we have fallback data available
-        return bool(self.fallback_data)
+        return False
     
     def get_cluster_info(self) -> Dict[str, Any]:
         """Get basic cluster information"""
@@ -271,16 +111,25 @@ class ElasticsearchMCPClient:
             Dictionary containing search results and metadata
         """
         if not self.client:
-            # Use fallback data
-            return self._search_fallback_data(query_type, search_terms, limit)
+            return {
+                "error": "Elasticsearch client not available",
+                "results": [],
+                "total": 0
+            }
         
         try:
             if not self.client.ping():
-                # Use fallback data
-                return self._search_fallback_data(query_type, search_terms, limit)
-        except:
-            # Use fallback data
-            return self._search_fallback_data(query_type, search_terms, limit)
+                return {
+                    "error": "Elasticsearch cluster not reachable",
+                    "results": [],
+                    "total": 0
+                }
+        except Exception as e:
+            return {
+                "error": f"Elasticsearch connection error: {str(e)}",
+                "results": [],
+                "total": 0
+            }
         
         # Get indices for the query type
         indices = self.index_mapping.get(query_type, self.index_mapping['general'])

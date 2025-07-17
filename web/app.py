@@ -93,9 +93,9 @@ def chat():
     try:
         if not AGENT_COMPONENTS_AVAILABLE:
             return jsonify({
-                'success': True,
-                'response': "I'm a simple ESTC chatbot. The full agent system isn't available right now, but you can still view the stock chart above!",
-                'blocked': False
+                'success': False,
+                'response': "ERROR: ESTC analysis system is not available. Please ensure Elasticsearch is properly installed and configured. The elasticsearch Python package is required for the full agent system to function.",
+                'blocked': True
             })
         
         data = request.get_json()

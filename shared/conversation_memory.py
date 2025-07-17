@@ -36,7 +36,8 @@ class ConversationMemory:
             self.sessions[new_session_id] = {
                 'created_at': datetime.now(),
                 'last_accessed': datetime.now(),
-                'conversation_history': []
+                'conversation_history': [],
+                'current_price_mentioned': False
             }
             
             # Clean up old sessions if we're at the limit
@@ -175,6 +176,33 @@ class ConversationMemory:
         """Get total number of exchanges across all sessions"""
         with self.lock:
             return sum(len(session['conversation_history']) for session in self.sessions.values())
+    
+    def has_current_price_been_mentioned(self, session_id: str) -> bool:
+        """Check if current stock price has been mentioned in this session"""
+        with self.lock:
+            if session_id not in self.sessions:
+                # Create session inline to avoid lock issues
+                self.sessions[session_id] = {
+                    'created_at': datetime.now(),
+                    'last_accessed': datetime.now(),
+                    'conversation_history': [],
+                    'current_price_mentioned': False
+                }
+            return self.sessions[session_id].get('current_price_mentioned', False)
+    
+    def mark_current_price_mentioned(self, session_id: str) -> None:
+        """Mark that current stock price has been mentioned in this session"""
+        with self.lock:
+            if session_id not in self.sessions:
+                # Create session inline to avoid lock issues
+                self.sessions[session_id] = {
+                    'created_at': datetime.now(),
+                    'last_accessed': datetime.now(),
+                    'conversation_history': [],
+                    'current_price_mentioned': True
+                }
+            else:
+                self.sessions[session_id]['current_price_mentioned'] = True
 
 # Global instance
 conversation_memory = ConversationMemory()
