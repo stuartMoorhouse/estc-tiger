@@ -13,10 +13,10 @@ ESTC Tiger is an intelligent chatbot designed to help Elastic (ESTC) RSU holders
 
 ## Architecture
 
-The app uses the "Evaluator Optimizer" pattern with MCP (Model Context Protocol) integration:
+The app uses the "Evaluator Optimizer" pattern with an agentic RAG integration:
 
 ```
-User Query → Security Evaluator → Generator (Claude + Elasticsearch MCP) → Output Evaluator → Response
+User Query → Security Evaluator → Generator (Claude + Elasticsearch RAG) → Output Evaluator → Response
      ↓              ↓                        ↓                           ↓
   Block/Allow    Jailbreak       Elasticsearch Query          Quality Check
   Decision      Detection        & Tool Use                   & Refinement
@@ -212,7 +212,7 @@ uv run pytest
 - **Purpose**: Core AI processing with access to specialized data
 - **Logic**:
   - Uses Claude AI (Sonnet model) to process validated queries
-  - Integrates with Elasticsearch via MCP (Model Context Protocol)
+  - Integrates with Elasticsearch via the Elasticsearch python client
   - Has access to comprehensive ESTC financial data (2018-2025)
   - Generates contextually relevant responses about stock analysis
 - **Returns**: Generated response string
@@ -249,7 +249,6 @@ uv run pytest
   - Stock performance data (2018-2025)
   - Competitive analysis vs Datadog, Splunk
   - RSU-specific information and scenarios
-- **Access**: Via MCP (Model Context Protocol) for secure tool use
 
 #### **External APIs**
 - **Finnhub**: Real-time stock price data
