@@ -13,7 +13,7 @@ ESTC Tiger is an intelligent chatbot designed to help Elastic (ESTC) RSU holders
 
 ## Architecture
 
-The app uses the "Evaluator Optimizer" pattern with conditional RAG integrations:
+The app implements a multi-source RAG pipeline with security validation:
 
 ```
 User Query → Security Evaluator → Generator (Claude + Elasticsearch + Finnhub) → Output Evaluator → Response
@@ -26,9 +26,9 @@ User Query → Security Evaluator → Generator (Claude + Elasticsearch + Finnhu
 
 - Python 3.12 or higher
 - UV package manager
-- Anthropic API key
-- Finnhub API key (optional - for real-time stock data)
-- Elasticsearch cluster
+- Anthropic API key (required)
+- Elasticsearch cluster (required - app will not function without it)
+- Finnhub API key (optional - for real-time stock data, falls back to historical estimates)
 
 ## Installation & Setup
 
@@ -69,9 +69,11 @@ ELASTICSEARCH_PASSWORD=your_password
 - **Anthropic API Key**: Sign up at [console.anthropic.com](https://console.anthropic.com)
 - **Finnhub API Key**: Get a free API key at [finnhub.io](https://finnhub.io/register) (free tier includes 60 calls/minute)
 
-### 4. Elasticsearch Setup
+### 4. Elasticsearch Setup (Required)
 
-#### Option A: Local Elasticsearch
+**⚠️ Critical**: The app requires Elasticsearch to function. Choose one option:
+
+#### Option A: Local Elasticsearch with Docker
 ```bash
 # Start Elasticsearch with Docker
 docker run -d \
@@ -80,6 +82,9 @@ docker run -d \
   -e "discovery.type=single-node" \
   -e "xpack.security.enabled=false" \
   elasticsearch:8.11.0
+
+# Verify it's running (should return cluster info)
+curl http://localhost:9200
 ```
 
 #### Option B: Elastic Cloud
@@ -88,7 +93,7 @@ docker run -d \
 3. Get your cluster endpoint and API key
 4. Update the `.env` file with your credentials
 
-### 5. Load Financial Data
+### 5. Load Financial Data (Required)
 
 Load the ESTC financial dataset into Elasticsearch:
 
@@ -104,6 +109,9 @@ curl -X POST "${ELASTICSEARCH_URL}/_bulk" \
   -H "Content-Type: application/x-ndjson" \
   -u "${ELASTICSEARCH_USERNAME}:${ELASTICSEARCH_PASSWORD}" \
   --data-binary @estc_es9_bulk.json
+
+# Verify data was loaded (should show multiple indices)
+curl "${ELASTICSEARCH_URL}/_cat/indices/estc-*?v"
 ```
 
 ### 6. Run the Application
@@ -145,151 +153,93 @@ The app includes comprehensive ESTC financial data from:
 ## Troubleshooting
 
 ### App won't start
-- Check that your `.env` file has the correct `ANTHROPIC_API_KEY`
-- Ensure Python 3.12+ is installed
-- Try `uv sync` to reinstall dependencies
+- **Check environment variables**: Ensure `.env` file has valid `ANTHROPIC_API_KEY`
+- **Python version**: Verify Python 3.12+ with `python --version`
+- **Dependencies**: Try `uv sync` to reinstall dependencies
+- **Port conflict**: Default port 5000 might be in use
 
-### No Elasticsearch data
-- Check your Elasticsearch URL and credentials
-- Verify the bulk data was loaded successfully
+### "Agent components not available" error
+- **Import errors**: Check that all shared modules are properly installed
+- **Dependencies**: Ensure all packages from pyproject.toml are installed with `uv sync`
+
+### Elasticsearch connection issues
+- **Service not running**: Verify Elasticsearch is running on configured URL
+- **Wrong credentials**: Check `ELASTICSEARCH_URL`, username/password, or API key
+- **Data not loaded**: Run the bulk data loading command and verify with `curl "${ELASTICSEARCH_URL}/_cat/indices/estc-*?v"`
+- **Network issues**: Test connection with `curl ${ELASTICSEARCH_URL}`
 
 ### API errors
-- Verify your Anthropic API key is valid and has credits
-- Check network connectivity
-- Review the console logs for specific error messages
+- **Invalid Anthropic key**: Verify key is valid and has credits at [console.anthropic.com](https://console.anthropic.com)
+- **Finnhub issues**: App will work without Finnhub (uses fallback data)
+- **Network connectivity**: Test with `curl https://api.anthropic.com`
+
+### Common Development Issues
+- **Empty responses**: Usually indicates missing Elasticsearch data
+- **Slow responses**: Check Elasticsearch query performance
+- **Memory issues**: Large conversation histories may cause memory usage spikes
 
 ## Development
 
 ### Project Structure
 ```
 estc-tiger/
-├── agent/                  # Core AI components
-│   ├── evaluators/        # Security and output evaluators
-│   └── generators/        # Claude + Elasticsearch integration
-├── shared/                # Shared utilities
-│   ├── conversation_memory.py
-│   ├── ecs_logger.py
-│   └── elasticsearch_client.py
-├── web/                   # Flask web application
-│   ├── app.py
-│   ├── static/           # CSS, images
-│   └── templates/        # HTML templates
-├── estc_es9_bulk.json    # Financial dataset
-└── pyproject.toml        # Dependencies
+├── agent/                     # Core AI components
+│   ├── evaluators/           # Security and output validation
+│   │   ├── security_evaluator.py    # Input validation & jailbreak detection
+│   │   └── output_evaluator.py      # Response security scanning
+│   └── generators/           # AI response generation
+│       ├── elasticsearch_generator.py  # Main RAG pipeline
+│       └── estc_generator.py           # Legacy generator
+├── shared/                   # Shared utilities
+│   ├── conversation_memory.py    # Session & conversation management
+│   ├── ecs_logger.py            # Structured logging (ECS format)
+│   ├── elasticsearch_client.py   # Elasticsearch service wrapper
+│   └── finnhub_client.py        # Stock data API client
+├── web/                     # Flask web application
+│   ├── app.py              # Main web server & API endpoints
+│   ├── static/            # CSS, images, client assets
+│   └── templates/         # HTML templates
+├── estc_es9_bulk.json     # Financial dataset for Elasticsearch
+└── pyproject.toml         # UV dependencies & project config
 ```
-
-### Running Tests
-```bash
-# Add test dependencies
-uv add --dev pytest pytest-asyncio
-
-# Run tests
-uv run pytest
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
 
 ## Technical Architecture
 
+### Pipeline Overview
+**Linear RAG Pipeline**: `SecurityEvaluator` → `ElasticsearchGenerator` (+ Finnhub data) → `OutputEvaluator` → Response  
+**No Retry Logic**: Failed validation = immediate blocked response
+
 ### Core Components
 
-#### 1. **Security Evaluator** (`agent/evaluators/security_evaluator.py`)
-- **Purpose**: First line of defense against malicious input
-- **Logic**: 
-  - Scans for jailbreak patterns (e.g., "ignore previous instructions")
-  - Detects dangerous Elasticsearch operations (e.g., "delete index")
-  - Validates query length and special character usage
-  - Blocks suspicious requests before they reach the AI
-- **Returns**: `{"safe": True/False, "reason": "explanation"}`
+**SecurityEvaluator** (`agent/evaluators/security_evaluator.py`)
+- Regex-based jailbreak detection, query length limits, special character filtering
+- Returns: `{"safe": True/False, "reason": "explanation"}`
 
-#### 2. **Generator** (`agent/generators/elasticsearch_generator.py`)
-- **Purpose**: Core AI processing with access to specialized data
-- **Logic**:
-  - Uses Claude AI (Sonnet model) to process validated queries
-  - Integrates directly with Elasticsearch for data retrieval
-  - Has access to comprehensive ESTC financial data (2018-2025)
-  - Generates contextually relevant responses about stock analysis
-- **Returns**: Generated response string
+**ElasticsearchGenerator** (`agent/generators/elasticsearch_generator.py`) 
+- Multi-source RAG: Elasticsearch (financial docs) + Finnhub (stock data) + Claude (Sonnet)
+- Query analysis, data retrieval, response generation with citations
+- Returns: Generated response string
 
-#### 3. **Output Evaluator** (`agent/evaluators/output_evaluator.py`)
-- **Purpose**: Quality control and safety check for AI responses
-- **Logic**:
-  - Scans for sensitive data leakage (passwords, API keys, etc.)
-  - Validates response quality and helpfulness
-  - Ensures completeness relative to user query
-  - Verifies Elasticsearch-specific accuracy
-- **Returns**: `{"approved": True/False, "feedback": "explanation"}`
+**OutputEvaluator** (`agent/evaluators/output_evaluator.py`)**
+- Security-only scanning for sensitive data (passwords, API keys, IPs)
+- **Note**: Does NOT validate response quality or accuracy
+- Returns: `{"approved": True/False, "feedback": "explanation"}`
 
 ### Security Features
 
-#### **Multi-Layer Protection**
-1. **Input Validation**: Regex patterns for jailbreak detection
-2. **Query Sanitization**: Length limits and special character filtering
-3. **Output Scanning**: Sensitive data detection in responses
-4. **Rate Limiting**: Prevents abuse and DoS attacks
+**Input Validation**: Regex-based jailbreak detection, query length limits, special character filtering  
+**Output Scanning**: Sensitive data detection (passwords, API keys, IPs)  
+**Error Sanitization**: API keys removed from user-facing error messages  
+**Attack Pattern Detection**: Jailbreak attempts, SQL injection, XSS, Elasticsearch abuse
 
-#### **Pattern Detection**
-- **Jailbreak Attempts**: "ignore previous instructions", "pretend you are"
-- **SQL Injection**: "drop table", "delete from", "'; --"
-- **XSS Attempts**: "script alert", "javascript:", "eval("
-- **Elasticsearch Abuse**: "_cluster settings", "delete index"
+### Data Sources
 
-### Data Integration
-
-#### **Elasticsearch Integration**
-- **Purpose**: Stores and searches comprehensive ESTC financial data
-- **Data Sources**: 
-  - SEC filings and earnings reports
-  - Stock performance data (2018-2025)
-  - Competitive analysis vs Datadog, Splunk
-  - RSU-specific information and scenarios
-- **Access**: Via direct client connection for secure data retrieval
-
-#### **External APIs**
-- **Finnhub**: Real-time stock price data
-- **Anthropic**: Claude AI processing
-- **Elasticsearch**: Financial data search and retrieval
-
-### Use Cases
-
-#### **Target Users**
-- ESTC RSU holders making vesting decisions
-- Financial analysts researching Elastic stock
-- Investors seeking comprehensive ESTC analysis
-
-#### **Typical Queries**
-- "What's ESTC's revenue growth trend?"
-- "How does Elastic compare to Datadog?"
-- "Should I hold or sell my RSUs?"
-- "What are the latest analyst ratings?"
-
-### Technical Benefits
-
-#### **Security First**
-- Prevents prompt injection attacks
-- Validates all inputs and outputs
-- Protects against data exfiltration
-
-#### **AI-Powered**
-- Leverages Claude's advanced reasoning
-- Contextual understanding of financial data
-- Natural language query processing
-
-#### **Scalable Architecture**
-- Modular component design
-- Async processing pipeline
-- Extensible evaluation framework
+**Elasticsearch**: 150+ ESTC financial documents (2018-2025) - SEC filings, competitive analysis, RSU data  
+**Finnhub API**: Real-time stock prices and historical data (optional - fallback available)  
+**Claude Training**: General financial knowledge and reasoning
 
 ## Disclaimer
 
 This tool is for informational purposes only and does not constitute financial advice. Always consult with qualified financial professionals before making investment decisions.
 
 ---
-
-*This application demonstrates how to build secure AI chatbots with specialized knowledge while maintaining robust protection against malicious use.*
