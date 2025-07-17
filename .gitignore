@@ -73,3 +73,6 @@ uv.lock
 # Temporary files
 *.tmp
 *.temp
+
+# Logs
+estc-tiger.json

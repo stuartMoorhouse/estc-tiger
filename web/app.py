@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import sys
+import time
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
@@ -18,6 +19,7 @@ try:
     from agent.evaluators.security_evaluator import SecurityEvaluator
     from agent.generators.elasticsearch_generator import ElasticsearchGenerator
     from agent.evaluators.output_evaluator import OutputEvaluator
+    from shared.ecs_logger import logger
     
     # Initialize components
     security_evaluator = SecurityEvaluator()
@@ -114,7 +116,9 @@ def chat():
         return jsonify({'success': False, 'error': str(e)})
 
 async def run_workflow(user_message):
-    """Run the Evaluator-Optimizer workflow"""
+    """Run the Evaluator-Optimizer workflow with comprehensive logging"""
+    start_time = time.time()
+    
     try:
         if not AGENT_COMPONENTS_AVAILABLE:
             return {
@@ -122,26 +126,58 @@ async def run_workflow(user_message):
                 'blocked': False
             }
         
+        # Log initial user query
+        query_id = logger.log_user_query(user_message)
+        
         # Stage 1: Security Evaluation
+        security_start = time.time()
         security_result = await security_evaluator.evaluate(user_message)
+        security_duration = int((time.time() - security_start) * 1000)
+        
+        # Log security evaluation
+        patterns_matched = security_result.get('pattern_matched', [])
+        if patterns_matched:
+            patterns_matched = [patterns_matched]
+        logger.log_security_evaluation(query_id, user_message, security_result, 
+                                     security_duration, patterns_matched)
         
         if not security_result['safe']:
+            total_duration = int((time.time() - start_time) * 1000)
+            logger.log_final_response(query_id, security_result['reason'], True, total_duration)
             return {
                 'response': security_result['reason'],
                 'blocked': True
             }
         
         # Stage 2: Generation
+        generation_start = time.time()
         generator_response = await elasticsearch_generator.generate(user_message)
+        generation_duration = int((time.time() - generation_start) * 1000)
+        
+        # Log generation with MCP calls
+        mcp_calls = elasticsearch_generator.get_mcp_calls()
+        logger.log_elasticsearch_generation(query_id, user_message, generator_response, 
+                                          generation_duration, mcp_calls)
         
         # Stage 3: Output Evaluation
+        output_start = time.time()
         output_result = await output_evaluator.evaluate(generator_response, user_message)
+        output_duration = int((time.time() - output_start) * 1000)
+        
+        # Log output evaluation
+        logger.log_output_evaluation(query_id, generator_response, output_result, output_duration)
         
         if not output_result['approved']:
+            total_duration = int((time.time() - start_time) * 1000)
+            logger.log_final_response(query_id, output_result['feedback'], True, total_duration)
             return {
                 'response': output_result['feedback'],
                 'blocked': True
             }
+        
+        # Log successful final response
+        total_duration = int((time.time() - start_time) * 1000)
+        logger.log_final_response(query_id, generator_response, False, total_duration)
         
         return {
             'response': generator_response,
@@ -149,8 +185,16 @@ async def run_workflow(user_message):
         }
         
     except Exception as e:
+        total_duration = int((time.time() - start_time) * 1000)
+        error_msg = f"I encountered an error processing your request: {str(e)}"
+        
+        # Log error if we have a query_id
+        if 'query_id' in locals():
+            logger.log_error(query_id, str(e), "workflow", total_duration)
+            logger.log_final_response(query_id, error_msg, False, total_duration)
+        
         return {
-            'response': f"I encountered an error processing your request: {str(e)}",
+            'response': error_msg,
             'blocked': False
         }
 
