@@ -16,7 +16,7 @@ ESTC Tiger is an intelligent chatbot designed to help Elastic (ESTC) RSU holders
 The app implements a multi-source RAG pipeline with security validation:
 
 ```
-User Query → Security Evaluator → Generator (Claude + Elasticsearch + Finnhub) → Output Evaluator → Response
+User Query → Security Evaluator → Generator (Claude + ES + Finnhub) → Output Evaluator → Response
      ↓              ↓                        ↓                                ↓
   Jailbreak      Block/Allow       Elasticsearch Query + Finnhub API        Quality Check
   Detection      Decision          Financial Data + Stock Prices            & Refinement
@@ -205,10 +205,6 @@ estc-tiger/
 
 ## Technical Architecture
 
-### Pipeline Overview
-**Linear RAG Pipeline**: `SecurityEvaluator` → `ElasticsearchGenerator` (+ Finnhub data) → `OutputEvaluator` → Response  
-**No Retry Logic**: Failed validation = immediate blocked response
-
 ### Core Components
 
 **SecurityEvaluator** (`agent/evaluators/security_evaluator.py`)
@@ -224,19 +220,6 @@ estc-tiger/
 - Security-only scanning for sensitive data (passwords, API keys, IPs)
 - **Note**: Does NOT validate response quality or accuracy
 - Returns: `{"approved": True/False, "feedback": "explanation"}`
-
-### Security Features
-
-**Input Validation**: Regex-based jailbreak detection, query length limits, special character filtering  
-**Output Scanning**: Sensitive data detection (passwords, API keys, IPs)  
-**Error Sanitization**: API keys removed from user-facing error messages  
-**Attack Pattern Detection**: Jailbreak attempts, SQL injection, XSS, Elasticsearch abuse
-
-### Data Sources
-
-**Elasticsearch**: 150+ ESTC financial documents (2018-2025) - SEC filings, competitive analysis, RSU data  
-**Finnhub API**: Real-time stock prices and historical data (optional - fallback available)  
-**Claude Training**: General financial knowledge and reasoning
 
 ## Disclaimer
 
