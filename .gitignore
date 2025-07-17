@@ -63,8 +63,8 @@ htmlcov/
 # pyenv
 .python-version
 
-# UV lock file
-uv.lock
+# UV lock file should be committed
+# uv.lock
 
 # Database
 *.db
@@ -74,5 +74,5 @@ uv.lock
 *.tmp
 *.temp
 
-# Logs
+# Application files
 estc-tiger.json
