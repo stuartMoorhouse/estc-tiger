@@ -2,6 +2,8 @@
 
 ESTC Tiger is an intelligent chatbot designed to help Elastic (ESTC) RSU holders make informed investment decisions. The app combines AI-powered analysis with comprehensive financial data to provide actionable insights about ESTC stock performance, market trends, and RSU timing strategies.
 
+<img src="screenshot.png" alt="ESTC Tiger Interface" width="600">
+
 ## Features
 
 - **Conversation Memory**: Maintains context across multiple exchanges for natural dialogue
@@ -16,10 +18,10 @@ ESTC Tiger is an intelligent chatbot designed to help Elastic (ESTC) RSU holders
 The app implements a multi-source RAG pipeline with security validation:
 
 ```
-Query → Security Evaluator → Generator (Claude + ES + Finnhub) → Output Evaluator → Response
-  ↓              ↓                        ↓                                ↓
-Jailbreak    Block/Allow    Elasticsearch Query + Finnhub API        Quality Check
-Detection     Decision      Financial Data + Stock Prices            & Refinement
+User Query → Security Evaluator → Generator (Claude + ES + Finnhub) → Output Evaluator → Response
+     ↓              ↓                        ↓                                ↓
+  Input          Block/Allow       Elasticsearch Query + Finnhub API        Security Scan
+  Validation     Decision          Financial Data + Stock Prices            (Sensitive Data)
 ```
 
 ## Prerequisites
