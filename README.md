@@ -28,7 +28,7 @@ User Query → Security Evaluator → Generator (Claude + Elasticsearch MCP) →
 - UV package manager
 - Anthropic API key
 - Finnhub API key (optional - for real-time stock data)
-- Elasticsearch cluster (optional - app works with fallback data)
+- Elasticsearch cluster
 
 ## Installation & Setup
 
