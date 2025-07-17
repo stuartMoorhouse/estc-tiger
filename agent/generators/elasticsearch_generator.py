@@ -8,6 +8,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from shared.elasticsearch_client import elasticsearch_client
 from shared.conversation_memory import conversation_memory
+from shared.finnhub_client import finnhub_client
 
 class ElasticsearchGenerator:
     """
@@ -51,7 +52,7 @@ class ElasticsearchGenerator:
             session_id = conversation_memory.get_or_create_session(session_id)
             
             # Analyze query intent and retrieve relevant data
-            retrieved_data = await self._retrieve_elasticsearch_data(user_query)
+            retrieved_data = await self._retrieve_all_data(user_query)
             
             # Build system message with retrieved data and conversation context
             system_message = self._build_system_message(retrieved_data, session_id)
@@ -127,7 +128,7 @@ class ElasticsearchGenerator:
         guidelines = """
         
         Guidelines:
-        - Be direct and concise
+        - Be direct, confident, and responsive - avoid hedging language
         - Focus on actionable investment insights
         - Use BOTH your training data AND the retrieved MCP data to provide comprehensive analysis
         - Help with RSU timing and tax considerations
@@ -135,6 +136,9 @@ class ElasticsearchGenerator:
         - Reference previous conversation context when relevant for continuity
         - Always provide confident, definitive responses using all available information
         - NEVER mention incomplete datasets, missing data, or need for more information
+        - NEVER use phrases like "I should maintain accuracy" or "I'll refrain from specifying"
+        - Be helpful and responsive rather than overly cautious about precision
+        - Make reasonable inferences from the data provided
         - Combine training knowledge with MCP data for complete, actionable analysis
         
         Citation Requirements:
@@ -165,6 +169,7 @@ class ElasticsearchGenerator:
         """Build user message with retrieved data context and conversation continuity"""
         
         search_results = retrieved_data.get('search_results', {})
+        finnhub_data = retrieved_data.get('finnhub_data')
         
         base_message = f"""
         User is asking about ESTC (Elastic stock): {user_query}
@@ -208,34 +213,161 @@ class ElasticsearchGenerator:
                 
                 data_section += "\n"
             
-            instruction = """
+            # Add Finnhub data if available
+            if finnhub_data:
+                if finnhub_data.get('price_data'):
+                    # Historical data
+                    data_section += "\n\nHISTORICAL STOCK DATA (Finnhub):\n"
+                    data_section += f"Symbol: {finnhub_data['symbol']}\n"
+                    data_section += f"Date Range: {finnhub_data['date_range']}\n"
+                    data_section += f"Total Data Points: {len(finnhub_data['price_data'])}\n"
+                    
+                    # Add sample of recent data points
+                    price_data = finnhub_data['price_data']
+                    recent_dates = sorted(price_data.keys())[-10:]  # Last 10 trading days
+                    data_section += "\nRecent Price Data:\n"
+                    for date in recent_dates:
+                        price_info = price_data[date]
+                        data_section += f"  {date}: Close ${price_info['close']:.2f}, High ${price_info['high']:.2f}, Low ${price_info['low']:.2f}\n"
+                    
+                    data_section += f"\nFull dataset contains daily prices from {finnhub_data['date_range']}.\n"
+                    data_section += f"Data source: {finnhub_data['source']}\n"
+                    data_section += f"Use this data to find correlations with product events and provide specific stock prices for historical events.\n"
+                    
+                else:
+                    # Current real-time data
+                    data_section += "\n\nREAL-TIME STOCK DATA (Finnhub):\n"
+                    data_section += f"Symbol: {finnhub_data['symbol']}\n"
+                    data_section += f"Current Price: ${finnhub_data['current_price']:.2f}\n"
+                    data_section += f"Previous Close: ${finnhub_data['previous_close']:.2f}\n"
+                    data_section += f"Change: ${finnhub_data['change']:.2f} ({finnhub_data['change_percent']:.2f}%)\n"
+                    data_section += f"Day High: ${finnhub_data['day_high']:.2f}\n"
+                    data_section += f"Day Low: ${finnhub_data['day_low']:.2f}\n"
+                    data_section += f"Day Open: ${finnhub_data['day_open']:.2f}\n"
+                    data_section += f"Timestamp: {finnhub_data['timestamp']}\n"
+                    
+                    # Add weekly/monthly data if available
+                    if finnhub_data.get('week_high'):
+                        data_section += f"Week High: ${finnhub_data['week_high']:.2f}\n"
+                        data_section += f"Week Low: ${finnhub_data['week_low']:.2f}\n"
+                    if finnhub_data.get('month_high'):
+                        data_section += f"Month High: ${finnhub_data['month_high']:.2f}\n"
+                        data_section += f"Month Low: ${finnhub_data['month_low']:.2f}\n"
+                        data_section += f"Month Average: ${finnhub_data['month_avg']:.2f}\n"
+                
+                data_section += "\n"
+            
+            # Add conversation context reminder
+            context_reminder = ""
+            if session_id:
+                context_reminder = "\n\nIMPORTANT: Review the previous conversation context in the system message to maintain continuity and reference previous topics when relevant."
+            
+            instruction = f"""
             
             Based on the retrieved data above AND your training knowledge, provide a comprehensive response about ESTC that directly addresses the user's question. 
             Use specific information from the documents to support your analysis, supplemented with your general market knowledge.
-            Consider the conversation context if this is a follow-up question.
+            Consider the conversation context if this is a follow-up question.{context_reminder}
             
             IMPORTANT: 
-            - Add citations in square brackets [index_name, document_id] ONLY after facts that come from the retrieved data above
+            - Add citations in square brackets [index_name, document_id] ONLY after facts that come from the retrieved MCP data above
+            - For stock data from Finnhub, add citation [data from finnhub.io API] after the relevant facts
+            - For fallback stock data when Finnhub fails, add citation [training data estimates (Finnhub historical data requires premium tier)] after the relevant facts
+            - When referencing historical stock data, ALWAYS include specific stock prices and dates
+            - When correlating product events with stock performance, MUST include the stock price at that time
+            - If Finnhub historical data is not available, use the fallback historical data provided (from training estimates)
             - Do not cite general market knowledge or training data
             - Use both MCP data and training knowledge to provide confident, complete analysis
             - Never mention incomplete datasets or missing data
+            - Be responsive and helpful - avoid overly cautious language about accuracy
+            - For each product event mentioned, provide an estimated stock price for that timeframe
             - Combine all available information to provide actionable investment insights
             - Fill gaps in MCP data with relevant training knowledge (without citations)
+            - Reference previous exchanges when answering follow-up questions
+            - CRITICAL: Every product event must be accompanied by a stock price estimate [data from finnhub.io API] or reasonable estimate based on training data
+            - When Finnhub API fails, use your training knowledge to provide reasonable stock price estimates for historical periods
+            - Always include specific stock prices and dates for product events, even if from training data estimates
             """
             
         else:
-            # No data retrieved
+            # No elasticsearch data retrieved
             connection_status = retrieved_data.get('connection_status', False)
             if not connection_status:
-                data_section = "\n\nNOTE: Elasticsearch connection not available. Using general ESTC knowledge.\n"
+                data_section = "\n\nNOTE: Elasticsearch connection not available. Using general ESTC knowledge"
             else:
-                data_section = "\n\nNOTE: No specific documents found for this query. Using general ESTC knowledge.\n"
+                data_section = "\n\nNOTE: No specific documents found for this query. Using general ESTC knowledge"
             
-            instruction = """
+            # Add Finnhub data if available even without elasticsearch data
+            if finnhub_data:
+                if finnhub_data.get('price_data'):
+                    # Historical data
+                    data_section += " and historical stock data.\n"
+                    data_section += "\n\nHISTORICAL STOCK DATA (Finnhub):\n"
+                    data_section += f"Symbol: {finnhub_data['symbol']}\n"
+                    data_section += f"Date Range: {finnhub_data['date_range']}\n"
+                    data_section += f"Total Data Points: {len(finnhub_data['price_data'])}\n"
+                    
+                    # Add sample of recent data points
+                    price_data = finnhub_data['price_data']
+                    recent_dates = sorted(price_data.keys())[-10:]  # Last 10 trading days
+                    data_section += "\nRecent Price Data:\n"
+                    for date in recent_dates:
+                        price_info = price_data[date]
+                        data_section += f"  {date}: Close ${price_info['close']:.2f}, High ${price_info['high']:.2f}, Low ${price_info['low']:.2f}\n"
+                    
+                    data_section += f"\nFull dataset contains daily prices from {finnhub_data['date_range']}.\n"
+                    data_section += f"Data source: {finnhub_data['source']}\n"
+                    data_section += f"Use this data to find correlations with product events and provide specific stock prices for historical events.\n"
+                    
+                else:
+                    # Current real-time data
+                    data_section += " and real-time stock data.\n"
+                    data_section += "\n\nREAL-TIME STOCK DATA (Finnhub):\n"
+                    data_section += f"Symbol: {finnhub_data['symbol']}\n"
+                    data_section += f"Current Price: ${finnhub_data['current_price']:.2f}\n"
+                    data_section += f"Previous Close: ${finnhub_data['previous_close']:.2f}\n"
+                    data_section += f"Change: ${finnhub_data['change']:.2f} ({finnhub_data['change_percent']:.2f}%)\n"
+                    data_section += f"Day High: ${finnhub_data['day_high']:.2f}\n"
+                    data_section += f"Day Low: ${finnhub_data['day_low']:.2f}\n"
+                    data_section += f"Day Open: ${finnhub_data['day_open']:.2f}\n"
+                    data_section += f"Timestamp: {finnhub_data['timestamp']}\n"
+                    
+                    # Add weekly/monthly data if available
+                    if finnhub_data.get('week_high'):
+                        data_section += f"Week High: ${finnhub_data['week_high']:.2f}\n"
+                        data_section += f"Week Low: ${finnhub_data['week_low']:.2f}\n"
+                    if finnhub_data.get('month_high'):
+                        data_section += f"Month High: ${finnhub_data['month_high']:.2f}\n"
+                        data_section += f"Month Low: ${finnhub_data['month_low']:.2f}\n"
+                        data_section += f"Month Average: ${finnhub_data['month_avg']:.2f}\n"
+                
+                data_section += "\n"
+            else:
+                data_section += ".\n"
+            
+            # Add conversation context reminder
+            context_reminder = ""
+            if session_id:
+                context_reminder = "\n\nIMPORTANT: Review the previous conversation context in the system message to maintain continuity and reference previous topics when relevant."
+            
+            instruction = f"""
             
             Please provide a confident, actionable response about ESTC based on the baseline data provided in the system message.
-            Consider the conversation context if this is a follow-up question.
+            Consider the conversation context if this is a follow-up question.{context_reminder}
             Do not use hedging language about limited data - the baseline data is sufficient for meaningful analysis.
+            
+            IMPORTANT: 
+            - For stock data from Finnhub, add citation [data from finnhub.io API] after the relevant facts
+            - For fallback stock data when Finnhub fails, add citation [training data estimates (Finnhub historical data requires premium tier)] after the relevant facts
+            - When referencing historical stock data, ALWAYS include specific stock prices and dates
+            - When correlating product events with stock performance, MUST include the stock price at that time
+            - If Finnhub historical data is not available, use the fallback historical data provided (from training estimates)
+            - Do not cite general market knowledge or training data
+            - Be responsive and helpful - avoid overly cautious language about accuracy
+            - For each product event mentioned, provide an estimated stock price for that timeframe
+            - Reference previous exchanges when answering follow-up questions
+            - CRITICAL: Every product event must be accompanied by a stock price estimate [data from finnhub.io API] or reasonable estimate based on training data
+            - When Finnhub API fails, use your training knowledge to provide reasonable stock price estimates for historical periods
+            - Always include specific stock prices and dates for product events, even if from training data estimates
             """
         
         return base_message + data_section + instruction
@@ -266,8 +398,8 @@ class ElasticsearchGenerator:
         
         return formatted
     
-    async def _retrieve_elasticsearch_data(self, user_query: str) -> Dict[str, Any]:
-        """Retrieve relevant ESTC data from Elasticsearch using MCP client"""
+    async def _retrieve_all_data(self, user_query: str) -> Dict[str, Any]:
+        """Retrieve relevant ESTC data from Elasticsearch and Finnhub"""
         
         # Analyze query intent to determine what data to search for
         query_analysis = elasticsearch_client.analyze_query_intent(user_query)
@@ -296,12 +428,82 @@ class ElasticsearchGenerator:
                 "search_terms": query_analysis['search_terms']
             })
         
+        # Check if we should fetch Finnhub data based on query
+        finnhub_data = None
+        data_type_needed = self._should_fetch_finnhub_data(user_query, query_analysis)
+        
+        if data_type_needed != 'none' and finnhub_client.is_available():
+            if data_type_needed == 'historical':
+                finnhub_data = finnhub_client.get_extended_historical_data(5)  # 5 years
+                if finnhub_data:
+                    # Track Finnhub API call
+                    self.mcp_calls.append({
+                        "service": "finnhub",
+                        "operation": "get_extended_historical_data",
+                        "symbol": "ESTC",
+                        "data_type": "historical_stock_data",
+                        "years": 5
+                    })
+            elif data_type_needed == 'current':
+                finnhub_data = finnhub_client.get_stock_summary()
+                if finnhub_data:
+                    # Track Finnhub API call
+                    self.mcp_calls.append({
+                        "service": "finnhub",
+                        "operation": "get_stock_summary",
+                        "symbol": "ESTC",
+                        "data_type": "real_time_stock_data"
+                    })
+        
         return {
             "query_analysis": query_analysis,
             "search_results": search_results,
             "connection_status": elasticsearch_client.is_connected(),
-            "cluster_info": elasticsearch_client.get_cluster_info()
+            "cluster_info": elasticsearch_client.get_cluster_info(),
+            "finnhub_data": finnhub_data,
+            "finnhub_available": finnhub_client.is_available()
         }
+    
+    def _should_fetch_finnhub_data(self, user_query: str, query_analysis: Dict[str, Any]) -> str:
+        """Determine what type of Finnhub data to fetch based on the query"""
+        query_lower = user_query.lower()
+        
+        # Keywords that indicate need for historical data
+        historical_keywords = [
+            'last 5 years', 'last five years', 'historical', 'over time',
+            'years', 'correlation', 'trend', 'pattern', 'since',
+            'past', 'history', 'over the', 'timeline', 'evolution'
+        ]
+        
+        # Keywords that indicate need for current stock data
+        current_price_keywords = [
+            'current price', 'latest price', 'price now', 'stock price',
+            'current value', 'trading at', 'price today', 'today',
+            'now', 'current', 'latest', 'real time', 'live',
+            'market price', 'share price'
+        ]
+        
+        # Check for historical data needs first
+        for keyword in historical_keywords:
+            if keyword in query_lower:
+                return 'historical'
+        
+        # Check if query contains current price keywords
+        for keyword in current_price_keywords:
+            if keyword in query_lower:
+                return 'current'
+        
+        # Check if query type is stock-related
+        if query_analysis.get('primary_type') == 'stock':
+            return 'current'
+        
+        # Check for general stock performance questions
+        performance_keywords = ['performance', 'how is', 'doing', 'trend']
+        for keyword in performance_keywords:
+            if keyword in query_lower and 'stock' in query_lower:
+                return 'current'
+        
+        return 'none'
     
     def get_mcp_calls(self) -> List[Dict[str, Any]]:
         """Get the MCP calls made during the last generation"""

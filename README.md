@@ -6,6 +6,7 @@ ESTC Tiger is an intelligent chatbot designed to help Elastic (ESTC) RSU holders
 
 - **Conversation Memory**: Maintains context across multiple exchanges for natural dialogue
 - **Source Citations**: All data-driven insights include citations to specific documents
+- **Real-Time Stock Data**: Integrates with Finnhub API for current stock prices and market data
 - **Comprehensive Data**: Combines AI training knowledge with real-time Elasticsearch data
 - **Security-First**: Built with robust security evaluators to prevent malicious prompts
 - **RSU-Focused**: Specifically designed for RSU holders with relevant metrics and advice
@@ -25,8 +26,9 @@ User Query → Security Evaluator → Generator (Claude + Elasticsearch MCP) →
 
 - Python 3.12 or higher
 - UV package manager
-- Elasticsearch cluster (optional - app works with fallback data)
 - Anthropic API key
+- Finnhub API key (optional - for real-time stock data)
+- Elasticsearch cluster (optional - app works with fallback data)
 
 ## Installation & Setup
 
@@ -51,6 +53,9 @@ Create a `.env` file in the project root:
 # Required: Anthropic API key
 ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
+# Optional: Finnhub API key for real-time stock data
+FINNHUB_API_KEY=your_finnhub_api_key_here
+
 # Optional: Elasticsearch configuration
 ELASTICSEARCH_URL=http://localhost:9200
 ELASTICSEARCH_USERNAME=elastic
@@ -58,6 +63,11 @@ ELASTICSEARCH_PASSWORD=your_password
 # OR use API key authentication:
 # ELASTICSEARCH_API_KEY=your_api_key_here
 ```
+
+#### Getting API Keys:
+
+- **Anthropic API Key**: Sign up at [console.anthropic.com](https://console.anthropic.com)
+- **Finnhub API Key**: Get a free API key at [finnhub.io](https://finnhub.io/register) (free tier includes 60 calls/minute)
 
 ### 4. Elasticsearch Setup (Optional)
 

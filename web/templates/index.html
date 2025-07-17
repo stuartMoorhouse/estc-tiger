@@ -154,8 +154,12 @@
             // Format citations in agent messages
             let formattedText = text;
             if (sender === 'agent') {
-                // Replace citation patterns [index_name, document_id] with styled spans
-                formattedText = text.replace(/\[([^,]+),\s*([^\]]+)\]/g, '<span class="citation">[$1, $2]</span>');
+                // Replace MCP citation patterns [index_name, document_id] with styled spans
+                formattedText = formattedText.replace(/\[([^,\]]+),\s*([^\]]+)\]/g, '<span class="citation">[$1, $2]</span>');
+                // Replace Finnhub citation patterns [data from finnhub.io API] with styled spans
+                formattedText = formattedText.replace(/\[data from finnhub\.io API\]/g, '<span class="citation">[data from finnhub.io API]</span>');
+                // Replace fallback citation patterns [training data estimates] with styled spans
+                formattedText = formattedText.replace(/\[training data estimates \(Finnhub historical data requires premium tier\)\]/g, '<span class="citation">[training data estimates (Finnhub historical data requires premium tier)]</span>');
             }
             
             messageDiv.innerHTML = `

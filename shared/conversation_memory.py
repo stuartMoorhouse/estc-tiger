@@ -87,17 +87,19 @@ class ConversationMemory:
         
         context = "\n\nPREVIOUS CONVERSATION CONTEXT:\n"
         context += "=" * 50 + "\n"
+        context += "The following is your conversation history with this user. Use this to maintain continuity and reference previous exchanges.\n\n"
         
         # Include recent exchanges (limited by token count)
         max_exchanges = min(len(history), self.max_conversation_tokens // self.avg_tokens_per_exchange)
         recent_history = history[-max_exchanges:] if max_exchanges > 0 else []
         
         for i, exchange in enumerate(recent_history, 1):
-            context += f"\n{i}. USER: {exchange['user_query']}\n"
-            context += f"   ASSISTANT: {exchange['assistant_response'][:300]}{'...' if len(exchange['assistant_response']) > 300 else ''}\n"
+            context += f"Exchange {i}:\n"
+            context += f"USER: {exchange['user_query']}\n"
+            context += f"YOUR PREVIOUS RESPONSE: {exchange['assistant_response'][:300]}{'...' if len(exchange['assistant_response']) > 300 else ''}\n\n"
         
-        context += "\n" + "=" * 50
-        context += "\nUse this context to provide continuity in your responses. Reference previous topics when relevant.\n"
+        context += "=" * 50
+        context += "\nIMPORTANT: You DO have access to this conversation history. Reference it when answering follow-up questions.\n"
         
         return context
     
