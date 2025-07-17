@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESTC Tiger</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .thinking-message {
+            opacity: 0.7;
+        }
+        
+        .dots {
+            animation: thinking 1.5s infinite;
+        }
+        
+        @keyframes thinking {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60% { content: '...'; }
+            80%, 100% { content: '....'; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="tiger-section">
+            <img src="{{ url_for('static', filename='estc-tiger.jpg') }}" alt="Tiger" class="tiger-image">
+            <div class="agent-info">
+                <h3>Ask the Tiger</h3>
+                <p>Buy, sell, HODL?</p>
+            </div>
+        </div>
+        
+        <div class="chat-section">
+            <div class="chat-messages" id="chatMessages">
+                <div class="message agent-message">
+                    <span class="message-icon">🐅</span>
+                    <div class="message-content">
+                        <p>Hello! I'm ESTC Tiger. Would you like to talk about ESTC today? I can't offer financial advice, but I can help you search and analyze data about ESTC.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-input">
+                <input type="text" id="messageInput" placeholder="Ask about ESTC..." />
+                <button id="sendButton">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Add user message to chat
+            addMessage(message, 'user');
+            messageInput.value = '';
+            
+            // Show thinking indicator
+            const thinkingMessage = addThinkingMessage();
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const data = await response.json();
+                
+                // Remove thinking indicator
+                removeThinkingMessage(thinkingMessage);
+                
+                if (data.success) {
+                    if (data.blocked) {
+                        addMessage(data.response, 'agent', 'blocked');
+                    } else {
+                        addMessage(data.response, 'agent', 'success');
+                    }
+                } else {
+                    addMessage('Sorry, I encountered an error. Please try again.', 'agent', 'error');
+                }
+            } catch (error) {
+                // Remove thinking indicator on error
+                removeThinkingMessage(thinkingMessage);
+                addMessage('Connection error. Please try again.', 'agent', 'error');
+            }
+        }
+
+        function addThinkingMessage() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message agent-message thinking-message';
+            messageDiv.id = 'thinking-indicator';
+            
+            messageDiv.innerHTML = `
+                <span class="message-icon">🐅</span>
+                <div class="message-content">
+                    <p>Tiger is thinking about ESTC<span class="dots">...</span></p>
+                </div>
+            `;
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        function removeThinkingMessage(thinkingMessage) {
+            if (thinkingMessage && thinkingMessage.parentNode) {
+                thinkingMessage.parentNode.removeChild(thinkingMessage);
+            }
+        }
+
+        function addMessage(text, sender, status) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            
+            if (status === 'blocked') {
+                messageDiv.classList.add('blocked-message');
+            } else if (status === 'error') {
+                messageDiv.classList.add('error-message');
+            }
+
+            const icon = sender === 'user' ? '👤' : '🐅';
+            
+            messageDiv.innerHTML = `
+                <span class="message-icon">${icon}</span>
+                <div class="message-content">
+                    <p>${text}</p>
+                </div>
+            `;
+
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

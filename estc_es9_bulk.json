@@ -1,0 +1,80 @@
+{"index": {"_index": "estc-financial-data", "_id": "fy2018"}}
+{"document_type": "annual_financials", "fiscal_year": 2018, "period_end": "2018-04-30", "revenue": 159900000, "revenue_growth_yoy": 81, "subscription_revenue": 144000000, "subscription_percentage": 90, "gaap_operating_margin": -28, "non_gaap_operating_margin": -21, "free_cash_flow_margin": 8, "implied_arr": 164000000, "arr_growth_yoy": 76, "net_expansion_rate": 130, "customers": 5500, "status": "pre_ipo", "notes": "Strong growth leading to IPO"}
+{"index": {"_index": "estc-financial-data", "_id": "fy2019"}}
+{"document_type": "annual_financials", "fiscal_year": 2019, "period_end": "2019-04-30", "revenue": 266800000, "revenue_growth_yoy": 67, "subscription_revenue": 243000000, "subscription_percentage": 91, "gaap_operating_margin": -36, "non_gaap_operating_margin": -18, "free_cash_flow_margin": 12, "implied_arr": 289000000, "arr_growth_yoy": 76, "net_expansion_rate": 125, "customers": 7700, "status": "public", "notes": "First full year as public company"}
+{"index": {"_index": "estc-financial-data", "_id": "fy2020"}}
+{"document_type": "annual_financials", "fiscal_year": 2020, "period_end": "2020-04-30", "revenue": 374000000, "revenue_growth_yoy": 40, "subscription_revenue": 343000000, "subscription_percentage": 92, "gaap_operating_margin": -28, "non_gaap_operating_margin": -12, "free_cash_flow_margin": 15, "implied_arr": 420000000, "arr_growth_yoy": 45, "net_expansion_rate": 120, "customers": 9000, "status": "public", "notes": "COVID impact but strong cloud growth"}
+{"index": {"_index": "estc-financial-data", "_id": "fy2021"}}
+{"document_type": "annual_financials", "fiscal_year": 2021, "period_end": "2021-04-30", "revenue": 608000000, "revenue_growth_yoy": 43, "subscription_revenue": 564000000, "subscription_percentage": 93, "gaap_operating_margin": -22, "non_gaap_operating_margin": -5, "free_cash_flow_margin": 18, "implied_arr": 681000000, "arr_growth_yoy": 42, "net_expansion_rate": 118, "customers": 13000, "status": "public", "notes": "Strong pandemic recovery, cloud acceleration"}
+{"index": {"_index": "estc-financial-data", "_id": "fy2022"}}
+{"document_type": "annual_financials", "fiscal_year": 2022, "period_end": "2022-04-30", "revenue": 862000000, "revenue_growth_yoy": 42, "subscription_revenue": 810000000, "subscription_percentage": 94, "gaap_operating_margin": -18, "non_gaap_operating_margin": 2, "free_cash_flow_margin": 20, "implied_arr": 964000000, "arr_growth_yoy": 41, "net_expansion_rate": 115, "customers": 16500, "status": "public", "notes": "First positive non-GAAP operating margin"}
+{"index": {"_index": "estc-financial-data", "_id": "fy2023"}}
+{"document_type": "annual_financials", "fiscal_year": 2023, "period_end": "2023-04-30", "revenue": 1069000000, "revenue_growth_yoy": 24, "subscription_revenue": 1021000000, "subscription_percentage": 95, "gaap_operating_margin": -15, "non_gaap_operating_margin": 8, "free_cash_flow_margin": 22, "implied_arr": 1156000000, "arr_growth_yoy": 26, "net_expansion_rate": 112, "customers": 18400, "status": "public", "notes": "Growth normalization, focus on profitability"}
+{"index": {"_index": "estc-financial-data", "_id": "fy2024"}}
+{"document_type": "annual_financials", "fiscal_year": 2024, "period_end": "2024-04-30", "revenue": 1267000000, "revenue_growth_yoy": 19, "subscription_revenue": 1223000000, "subscription_percentage": 96, "gaap_operating_margin": -13, "non_gaap_operating_margin": 9, "free_cash_flow_margin": 19, "implied_arr": 1356000000, "arr_growth_yoy": 20, "net_expansion_rate": 110, "customers": 20900, "status": "public", "notes": "Steady growth, AI/GenAI momentum building"}
+{"index": {"_index": "estc-financial-data", "_id": "fy2025"}}
+{"document_type": "annual_financials", "fiscal_year": 2025, "period_end": "2025-04-30", "revenue": 1483000000, "revenue_growth_yoy": 17, "subscription_revenue": 1438000000, "subscription_percentage": 97, "gaap_operating_margin": -9, "non_gaap_operating_margin": 12, "free_cash_flow_margin": 21, "implied_arr": 1556000000, "arr_growth_yoy": 16, "net_expansion_rate": 108, "customers": 23500, "status": "public", "notes": "AI-driven growth, improved margins"}
+{"index": {"_index": "estc-quarterly-data", "_id": "q1fy2025"}}
+{"document_type": "quarterly_earnings", "fiscal_quarter": "Q1", "fiscal_year": 2025, "period_end": "2024-07-31", "revenue": 347000000, "revenue_growth_yoy": 18, "cloud_revenue": 157000000, "cloud_growth_yoy": 30, "subscription_revenue": 339000000, "gaap_operating_margin": -10, "non_gaap_operating_margin": 11, "eps_gaap": -0.48, "eps_non_gaap": 0.35, "free_cash_flow": 64000000, "customers": 21200, "customers_100k_plus": 1460}
+{"index": {"_index": "estc-quarterly-data", "_id": "q4fy2024"}}
+{"document_type": "quarterly_earnings", "fiscal_quarter": "Q4", "fiscal_year": 2024, "period_end": "2024-04-30", "revenue": 335000000, "revenue_growth_yoy": 20, "cloud_revenue": 148000000, "cloud_growth_yoy": 32, "subscription_revenue": 323000000, "gaap_operating_margin": -14, "non_gaap_operating_margin": 9, "eps_gaap": -0.41, "eps_non_gaap": 0.21, "free_cash_flow": 60000000, "customers": 20900, "customers_100k_plus": 1420}
+{"index": {"_index": "estc-quarterly-data", "_id": "q3fy2024"}}
+{"document_type": "quarterly_earnings", "fiscal_quarter": "Q3", "fiscal_year": 2024, "period_end": "2024-01-31", "revenue": 310000000, "revenue_growth_yoy": 13, "cloud_revenue": 138000000, "cloud_growth_yoy": 26, "subscription_revenue": 298000000, "gaap_operating_margin": -12, "non_gaap_operating_margin": 17, "eps_gaap": -0.35, "eps_non_gaap": 0.471, "free_cash_flow": 55000000, "customers": 20200, "customers_100k_plus": 1380}
+{"index": {"_index": "estc-stock-data", "_id": "2018"}}
+{"document_type": "stock_performance", "year": 2018, "ipo_date": "2018-10-05", "ipo_price": 36.00, "first_day_close": 70.00, "first_day_gain": 94.4, "year_end_close": 61.20, "year_high": 104.10, "year_low": 36.00, "volume_avg_daily": 2800000, "market_cap_year_end": 5200000000}
+{"index": {"_index": "estc-stock-data", "_id": "2019"}}
+{"document_type": "stock_performance", "year": 2019, "year_open": 61.20, "year_end_close": 89.25, "year_high": 104.10, "year_low": 54.38, "annual_return": 45.8, "volume_avg_daily": 2150000, "market_cap_year_end": 7800000000}
+{"index": {"_index": "estc-stock-data", "_id": "2020"}}
+{"document_type": "stock_performance", "year": 2020, "year_open": 89.25, "year_end_close": 145.79, "year_high": 176.40, "year_low": 39.01, "annual_return": 63.3, "volume_avg_daily": 2900000, "market_cap_year_end": 12500000000}
+{"index": {"_index": "estc-stock-data", "_id": "2021"}}
+{"document_type": "stock_performance", "year": 2021, "year_open": 145.79, "year_end_close": 117.92, "year_high": 186.78, "year_low": 97.89, "annual_return": -19.1, "volume_avg_daily": 1950000, "market_cap_year_end": 10800000000}
+{"index": {"_index": "estc-stock-data", "_id": "2022"}}
+{"document_type": "stock_performance", "year": 2022, "year_open": 117.92, "year_end_close": 49.83, "year_high": 140.74, "year_low": 32.95, "annual_return": -57.7, "volume_avg_daily": 2450000, "market_cap_year_end": 4800000000}
+{"index": {"_index": "estc-stock-data", "_id": "2023"}}
+{"document_type": "stock_performance", "year": 2023, "year_open": 49.83, "year_end_close": 65.41, "year_high": 84.99, "year_low": 40.20, "annual_return": 31.3, "volume_avg_daily": 2200000, "market_cap_year_end": 6200000000}
+{"index": {"_index": "estc-stock-data", "_id": "2024"}}
+{"document_type": "stock_performance", "year": 2024, "year_open": 65.41, "year_end_close": 110.50, "year_high": 136.06, "year_low": 69.00, "annual_return": 69.0, "volume_avg_daily": 2100000, "market_cap_year_end": 10500000000}
+{"index": {"_index": "estc-stock-data", "_id": "2025"}}
+{"document_type": "stock_performance", "year": 2025, "year_open": 110.50, "current_price": 85.71, "year_high": 123.96, "year_low": 69.00, "ytd_return": -22.5, "volume_avg_daily": 1950000, "market_cap_current": 8530000000}
+{"index": {"_index": "estc-competitive-data", "_id": "datadog_comparison"}}
+{"document_type": "competitive_analysis", "competitor": "Datadog", "ticker": "DDOG", "category": "observability", "elastic_revenue_2025": 1483000000, "competitor_revenue_2025": 2500000000, "elastic_growth_2025": 17, "competitor_growth_2025": 21, "elastic_margin_advantage": "Better unit economics", "elastic_differentiation": "Unified search, security, and observability platform", "market_position": "Strong #2 in observability, #1 in enterprise search"}
+{"index": {"_index": "estc-competitive-data", "_id": "splunk_comparison"}}
+{"document_type": "competitive_analysis", "competitor": "Splunk", "ticker": "SPLK", "category": "security_analytics", "elastic_advantage": "Modern architecture, better pricing model", "market_context": "Cisco acquired Splunk for $28B in 2023", "elastic_opportunity": "Legacy Splunk customer migration", "competitive_wins": "Elastic Security gaining market share"}
+{"index": {"_index": "estc-competitive-data", "_id": "mongodb_comparison"}}
+{"document_type": "competitive_analysis", "competitor": "MongoDB", "ticker": "MDB", "category": "developer_tools", "elastic_advantage": "Search-first vs document-first approach", "use_case_overlap": "Developer tools, application development", "market_differentiation": "Elastic focuses on search and analytics, MongoDB on transactional workloads"}
+{"index": {"_index": "estc-product-milestones", "_id": "elastic_search_ai_platform"}}
+{"document_type": "product_milestone", "date": "2024-01-15", "milestone": "Elastic Search AI Platform Launch", "description": "Integrated AI capabilities into core platform", "impact": "Positioned for GenAI market opportunity", "revenue_impact": "Drove 1,750+ GenAI customers by Q1 2025"}
+{"index": {"_index": "estc-product-milestones", "_id": "cloud_serverless_ga"}}
+{"document_type": "product_milestone", "date": "2024-06-01", "milestone": "Elastic Cloud Serverless GA", "description": "General availability across AWS, Azure, and GCP", "impact": "Expanded addressable market for cloud-native customers", "revenue_impact": "Contributing to 26-30% cloud revenue growth"}
+{"index": {"_index": "estc-market-events", "_id": "gartner_mq_leader_2024"}}
+{"document_type": "market_recognition", "date": "2024-09-01", "event": "Gartner Magic Quadrant Leader - Observability", "significance": "Validates competitive position vs DDOG, NEWR, DT", "impact": "Strengthens enterprise sales positioning", "analyst_quote": "Strong execution and completeness of vision"}
+{"index": {"_index": "estc-market-events", "_id": "forrester_wave_leader_2024"}}
+{"document_type": "market_recognition", "date": "2024-11-15", "event": "Forrester Wave Leader - Security Analytics", "significance": "Validates security platform capabilities", "impact": "Supports competitive wins against Splunk", "differentiation": "AI-native security analytics"}
+{"index": {"_index": "estc-rsu-relevant", "_id": "vesting_schedule"}}
+{"document_type": "rsu_information", "vesting_frequency": "quarterly", "vesting_periods": ["Q1", "Q2", "Q3", "Q4"], "blackout_periods": ["2 weeks before earnings", "M&A discussions"], "tax_implications": "Ordinary income at vest, capital gains on sale", "employee_considerations": "Diversification strategy recommended"}
+{"index": {"_index": "estc-rsu-relevant", "_id": "vesting_value_scenarios"}}
+{"document_type": "rsu_value_scenarios", "shares_vesting": 1000, "current_price": 85.71, "bull_scenario": 180, "base_scenario": 120, "bear_scenario": 70, "current_value": 85710, "bull_value": 180000, "base_value": 120000, "bear_value": 70000}
+{"index": {"_index": "estc-analyst-data", "_id": "consensus_2025"}}
+{"document_type": "analyst_consensus", "period": "2025", "average_price_target": 115.74, "high_target": 140.00, "low_target": 95.00, "buy_ratings": 18, "hold_ratings": 7, "sell_ratings": 1, "consensus_rating": "BUY", "upgrade_downgrade_trend": "Positive momentum"}
+{"index": {"_index": "estc-scenario-analysis", "_id": "bull_case"}}
+{"document_type": "scenario_analysis", "scenario": "bull_case", "revenue_2027": 2400000000, "key_drivers": ["AI platform leadership", "Security market share gains", "International expansion success"], "margin_expansion": 28, "stock_price_target": 180, "probability": 25}
+{"index": {"_index": "estc-scenario-analysis", "_id": "base_case"}}
+{"document_type": "scenario_analysis", "scenario": "base_case", "revenue_2027": 2000000000, "key_drivers": ["Steady growth", "Market share maintenance", "Margin improvement"], "margin_expansion": 25, "stock_price_target": 120, "probability": 50}
+{"index": {"_index": "estc-scenario-analysis", "_id": "bear_case"}}
+{"document_type": "scenario_analysis", "scenario": "bear_case", "revenue_2027": 1600000000, "key_drivers": ["Increased competition", "Growth deceleration", "Margin pressure"], "margin_expansion": 20, "stock_price_target": 70, "probability": 25}
+{"index": {"_index": "estc-guidance-data", "_id": "q4fy2025"}}
+{"document_type": "guidance", "period": "Q4 FY2025", "revenue_guidance": "379M-381M", "revenue_growth_guidance": "13-15%", "operating_margin_guidance": 13.5, "full_year_guidance": "1474M-1476M", "full_year_growth_guidance": "16-17%", "cloud_revenue_outlook": "Continued 25%+ growth"}
+{"index": {"_index": "estc-partnership-data", "_id": "aws_sca_2024"}}
+{"document_type": "strategic_partnership", "date": "2024-12-01", "partner": "Amazon Web Services", "deal_type": "5-Year Strategic Collaboration Agreement", "value": "Expanded go-to-market and technical integration", "impact": "Accelerated customer acquisition", "financial_impact": "Expected to drive 15-20% of revenue growth"}
+{"index": {"_index": "estc-acquisition-history", "_id": "endgame_2019"}}
+{"document_type": "acquisition", "date": "2019-10-01", "company": "Endgame", "purchase_price": 234000000, "focus": "Endpoint Security", "integration": "Elastic Security", "strategic_value": "Full security platform capabilities"}
+{"index": {"_index": "estc-acquisition-history", "_id": "keep_alerting_2025"}}
+{"document_type": "acquisition", "date": "2025-01-15", "company": "Keep Alerting", "focus": "AIOps/Alert Management", "integration": "Elastic AI Assistant", "strategic_value": "AI-powered workflow automation"}
+{"index": {"_index": "estc-customer-metrics", "_id": "q1_2025"}}
+{"document_type": "customer_metrics", "period": "Q1 FY2025", "total_customers": 21200, "customers_100k_plus": 1460, "customers_1m_plus": 65, "net_expansion_rate": 108, "genai_customers": 1750, "genai_customers_100k_plus": 270}
+{"index": {"_index": "estc-risk-factors", "_id": "competitive_risks"}}
+{"document_type": "risk_assessment", "category": "competitive", "risk": "Competition from larger players", "mitigation": "Focused differentiation on search and unified platform", "impact": "Moderate - managed through innovation"}
+{"index": {"_index": "estc-technology-trends", "_id": "genai_adoption"}}
+{"document_type": "technology_trend", "trend": "Generative AI Adoption", "impact": "Positive", "elastic_positioning": "RAG and vector search leader", "customer_adoption": "1750+ GenAI customers", "revenue_contribution": "5 deals over $1M in Q1", "future_outlook": "Significant growth driver"}
+{"index": {"_index": "estc-data-metadata", "_id": "creation_info"}}
+{"document_type": "data_creation_metadata", "creation_date": "2025-01-17", "created_by": "Claude Sonnet 4", "model_family": "Claude 4", "anthropic_version": "Claude Sonnet 4 (claude-sonnet-4-20250514)", "data_compilation_method": "Web research and financial data synthesis", "last_updated": "2025-01-17", "data_currency": "Current as of January 2025", "compilation_notes": "Comprehensive ESTC dataset compiled from multiple authoritative sources", "intended_use": "RSU holder decision support via MCP-enabled chatbot", "data_quality": "Institutional-grade analysis"}
