@@ -69,9 +69,7 @@ ELASTICSEARCH_PASSWORD=your_password
 - **Anthropic API Key**: Sign up at [console.anthropic.com](https://console.anthropic.com)
 - **Finnhub API Key**: Get a free API key at [finnhub.io](https://finnhub.io/register) (free tier includes 60 calls/minute)
 
-### 4. Elasticsearch Setup (Optional)
-
-If you want to use live Elasticsearch data instead of the fallback dataset:
+### 4. Elasticsearch Setup
 
 #### Option A: Local Elasticsearch
 ```bash
@@ -152,7 +150,6 @@ The app includes comprehensive ESTC financial data from:
 - Try `uv sync` to reinstall dependencies
 
 ### No Elasticsearch data
-- The app works with fallback data if Elasticsearch is unavailable
 - Check your Elasticsearch URL and credentials
 - Verify the bulk data was loaded successfully
 
