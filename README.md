@@ -188,8 +188,7 @@ estc-tiger/
 │   │   ├── security_evaluator.py    # Input validation & jailbreak detection
 │   │   └── output_evaluator.py      # Response security scanning
 │   └── generators/           # AI response generation
-│       ├── elasticsearch_generator.py  # Main RAG pipeline
-│       └── estc_generator.py           # Legacy generator
+│       └── data_processor.py  # Multi-source data processing (Elasticsearch + Finnhub + Claude)
 ├── shared/                   # Shared utilities
 │   ├── conversation_memory.py    # Session & conversation management
 │   ├── ecs_logger.py            # Structured logging (ECS format)
@@ -211,8 +210,8 @@ estc-tiger/
 - Regex-based jailbreak detection, query length limits, special character filtering
 - Returns: `{"safe": True/False, "reason": "explanation"}`
 
-**ElasticsearchGenerator** (`agent/generators/elasticsearch_generator.py`) 
-- Multi-source RAG: Elasticsearch (financial docs) + Finnhub (stock data) + Claude (Sonnet)
+**DataProcessor** (`agent/generators/data_processor.py`) 
+- Multi-source data processing: Elasticsearch (financial docs) + Finnhub (stock data) + Claude (Sonnet)
 - Query analysis, data retrieval, response generation with citations
 - Returns: Generated response string
 

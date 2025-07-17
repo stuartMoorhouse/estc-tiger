@@ -17,7 +17,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import your agent components
 try:
     from agent.evaluators.security_evaluator import SecurityEvaluator
-    from agent.generators.elasticsearch_generator import ElasticsearchGenerator
+    from agent.generators.data_processor import ElasticsearchGenerator
     from agent.evaluators.output_evaluator import OutputEvaluator
     from shared.ecs_logger import logger
     from shared.conversation_memory import conversation_manager
