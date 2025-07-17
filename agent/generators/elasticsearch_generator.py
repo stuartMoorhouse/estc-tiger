@@ -56,7 +56,10 @@ class ElasticsearchGenerator:
             
             # Call Claude to generate response
             response = await self._call_claude_api(system_message, user_message)
-            return response
+            
+            # Post-process for better readability
+            formatted_response = self._format_response(response)
+            return formatted_response
             
         except Exception as e:
             return f"I encountered an error analyzing ESTC data: {str(e)}"
@@ -87,8 +90,40 @@ class ElasticsearchGenerator:
         - Help with RSU timing and tax considerations
         - Compare to competitors when relevant
         
-        Always provide helpful, data-driven responses about ESTC.
+        Formatting requirements:
+        - Use clear paragraph breaks between different topics
+        - Break up long text into digestible sections
+        - Use line breaks after bullet points and before new topics
+        - Structure responses with clear sections (e.g., "Key Metrics:", "Investment Perspective:", etc.)
+        
+        Always provide helpful, data-driven responses about ESTC with proper formatting.
         """
+    
+    def _format_response(self, response: str) -> str:
+        """Format response for better readability"""
+        # Add paragraph breaks after bullet points and before new sections
+        formatted = response.replace(' - ', '\n- ')
+        
+        # Add breaks before common section headers
+        section_headers = ['Key Metrics:', 'Investment Perspective:', 'For RSU holders:', 
+                          'Key ESTC Metrics:', 'Current Performance:', 'Outlook:', 
+                          'Recommendation:', 'Summary:', 'Analysis:']
+        
+        for header in section_headers:
+            formatted = formatted.replace(header, f'\n\n{header}')
+        
+        # Add breaks before questions
+        formatted = formatted.replace('Would you like', '\n\nWould you like')
+        formatted = formatted.replace('Do you need', '\n\nDo you need')
+        
+        # Clean up multiple line breaks
+        import re
+        formatted = re.sub(r'\n{3,}', '\n\n', formatted)
+        
+        # Remove leading/trailing whitespace
+        formatted = formatted.strip()
+        
+        return formatted
     
     async def _call_claude_api(self, system_message: str, user_message: str) -> str:
         """Make actual call to Claude API"""

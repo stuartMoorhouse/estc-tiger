@@ -147,6 +147,8 @@ body {
     padding: 10px 15px;
     border-radius: 18px;
     word-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.5;
 }
 
 .user-message .message-content {
