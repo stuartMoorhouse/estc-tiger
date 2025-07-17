@@ -20,6 +20,7 @@ try:
     from agent.generators.elasticsearch_generator import ElasticsearchGenerator
     from agent.evaluators.output_evaluator import OutputEvaluator
     from shared.ecs_logger import logger
+    from shared.conversation_memory import conversation_memory
     
     # Initialize components
     security_evaluator = SecurityEvaluator()
@@ -99,23 +100,74 @@ def chat():
         
         data = request.get_json()
         user_message = data.get('message', '')
+        session_id = data.get('session_id', None)
         
         if not user_message:
             return jsonify({'success': False, 'error': 'No message provided'})
         
         # Run the evaluator-optimizer workflow
-        result = asyncio.run(run_workflow(user_message))
+        result = asyncio.run(run_workflow(user_message, session_id))
         
         return jsonify({
             'success': True,
             'response': result['response'],
-            'blocked': result['blocked']
+            'blocked': result['blocked'],
+            'session_id': result.get('session_id')
         })
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
-async def run_workflow(user_message):
+@app.route('/conversation', methods=['GET'])
+def get_conversation():
+    """Get conversation history for a session"""
+    try:
+        if not AGENT_COMPONENTS_AVAILABLE:
+            return jsonify({'success': False, 'error': 'Agent components not available'})
+        
+        session_id = request.args.get('session_id')
+        
+        if not session_id:
+            return jsonify({'success': False, 'error': 'No session_id provided'})
+        
+        # Get conversation history
+        history = conversation_memory.get_conversation_history(session_id)
+        session_info = conversation_memory.get_session_info(session_id)
+        
+        return jsonify({
+            'success': True,
+            'history': history,
+            'session_info': session_info
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/conversation', methods=['DELETE'])
+def clear_conversation():
+    """Clear conversation history for a session"""
+    try:
+        if not AGENT_COMPONENTS_AVAILABLE:
+            return jsonify({'success': False, 'error': 'Agent components not available'})
+        
+        data = request.get_json()
+        session_id = data.get('session_id')
+        
+        if not session_id:
+            return jsonify({'success': False, 'error': 'No session_id provided'})
+        
+        # Clear conversation history
+        cleared = conversation_memory.clear_session(session_id)
+        
+        return jsonify({
+            'success': True,
+            'cleared': cleared
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+async def run_workflow(user_message, session_id=None):
     """Run the Evaluator-Optimizer workflow with comprehensive logging"""
     start_time = time.time()
     
@@ -123,7 +175,8 @@ async def run_workflow(user_message):
         if not AGENT_COMPONENTS_AVAILABLE:
             return {
                 'response': "Agent components not available. Please check your setup.",
-                'blocked': False
+                'blocked': False,
+                'session_id': session_id
             }
         
         # Log initial user query
@@ -146,12 +199,13 @@ async def run_workflow(user_message):
             logger.log_final_response(query_id, security_result['reason'], True, total_duration)
             return {
                 'response': security_result['reason'],
-                'blocked': True
+                'blocked': True,
+                'session_id': session_id
             }
         
         # Stage 2: Generation
         generation_start = time.time()
-        generator_response = await elasticsearch_generator.generate(user_message)
+        generator_response = await elasticsearch_generator.generate(user_message, session_id)
         generation_duration = int((time.time() - generation_start) * 1000)
         
         # Log generation with MCP calls
@@ -172,7 +226,8 @@ async def run_workflow(user_message):
             logger.log_final_response(query_id, output_result['feedback'], True, total_duration)
             return {
                 'response': output_result['feedback'],
-                'blocked': True
+                'blocked': True,
+                'session_id': session_id
             }
         
         # Log successful final response
@@ -181,7 +236,8 @@ async def run_workflow(user_message):
         
         return {
             'response': generator_response,
-            'blocked': False
+            'blocked': False,
+            'session_id': session_id
         }
         
     except Exception as e:
@@ -195,7 +251,8 @@ async def run_workflow(user_message):
         
         return {
             'response': error_msg,
-            'blocked': False
+            'blocked': False,
+            'session_id': session_id
         }
 
 if __name__ == '__main__':

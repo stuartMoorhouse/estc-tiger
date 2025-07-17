@@ -45,6 +45,7 @@
             <div class="chat-input">
                 <input type="text" id="messageInput" placeholder="Ask about ESTC..." />
                 <button id="sendButton">Send</button>
+                <button id="clearButton" class="clear-button">Clear History</button>
             </div>
         </div>
     </div>
@@ -53,6 +54,10 @@
         const chatMessages = document.getElementById('chatMessages');
         const messageInput = document.getElementById('messageInput');
         const sendButton = document.getElementById('sendButton');
+        
+        // Session management
+        let currentSessionId = null;
+        const clearButton = document.getElementById('clearButton');
 
         async function sendMessage() {
             const message = messageInput.value.trim();
@@ -71,7 +76,10 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ message: message })
+                    body: JSON.stringify({ 
+                        message: message,
+                        session_id: currentSessionId 
+                    })
                 });
 
                 const data = await response.json();
@@ -80,6 +88,11 @@
                 removeThinkingMessage(thinkingMessage);
                 
                 if (data.success) {
+                    // Update session ID if provided
+                    if (data.session_id) {
+                        currentSessionId = data.session_id;
+                    }
+                    
                     if (data.blocked) {
                         addMessage(data.response, 'agent', 'blocked');
                     } else {
@@ -131,10 +144,17 @@
 
             const icon = sender === 'user' ? '👤' : '🐅';
             
+            // Format citations in agent messages
+            let formattedText = text;
+            if (sender === 'agent') {
+                // Replace citation patterns [index_name, document_id] with styled spans
+                formattedText = text.replace(/\[([^,]+),\s*([^\]]+)\]/g, '<span class="citation">[$1, $2]</span>');
+            }
+            
             messageDiv.innerHTML = `
                 <span class="message-icon">${icon}</span>
                 <div class="message-content">
-                    <p>${text}</p>
+                    <p>${formattedText}</p>
                 </div>
             `;
 
@@ -142,8 +162,48 @@
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
+        async function clearConversation() {
+            if (!currentSessionId) {
+                // Just clear the UI if no session
+                clearChatMessages();
+                return;
+            }
+            
+            try {
+                const response = await fetch('/conversation', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ session_id: currentSessionId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    clearChatMessages();
+                    currentSessionId = null;
+                } else {
+                    addMessage('Error clearing conversation history.', 'agent', 'error');
+                }
+            } catch (error) {
+                addMessage('Error clearing conversation history.', 'agent', 'error');
+            }
+        }
+        
+        function clearChatMessages() {
+            // Clear all messages except the initial greeting
+            const messages = chatMessages.querySelectorAll('.message');
+            messages.forEach((message, index) => {
+                if (index > 0) { // Keep the first message (greeting)
+                    message.remove();
+                }
+            });
+        }
+
         // Event listeners
         sendButton.addEventListener('click', sendMessage);
+        clearButton.addEventListener('click', clearConversation);
         messageInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 sendMessage();

@@ -207,6 +207,23 @@ body {
     background-color: #1976d2;
 }
 
+.clear-button {
+    background-color: #f44336 !important;
+    margin-left: 10px;
+}
+
+.clear-button:hover {
+    background-color: #d32f2f !important;
+}
+
+/* Citation styling */
+.citation {
+    font-size: 0.75em;
+    color: #888;
+    font-weight: normal;
+    margin-left: 2px;
+}
+
 .workflow-status {
     margin-top: 10px;
     padding: 10px;
