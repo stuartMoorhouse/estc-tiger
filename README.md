@@ -16,10 +16,10 @@ ESTC Tiger is an intelligent chatbot designed to help Elastic (ESTC) RSU holders
 The app implements a multi-source RAG pipeline with security validation:
 
 ```
-User Query → Security Evaluator → Generator (Claude + ES + Finnhub) → Output Evaluator → Response
-     ↓              ↓                        ↓                                ↓
-  Jailbreak      Block/Allow       Elasticsearch Query + Finnhub API        Quality Check
-  Detection      Decision          Financial Data + Stock Prices            & Refinement
+Query → Security Evaluator → Generator (Claude + ES + Finnhub) → Output Evaluator → Response
+  ↓              ↓                        ↓                                ↓
+Jailbreak    Block/Allow    Elasticsearch Query + Finnhub API        Quality Check
+Detection     Decision      Financial Data + Stock Prices            & Refinement
 ```
 
 ## Prerequisites
