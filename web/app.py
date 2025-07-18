@@ -88,6 +88,29 @@ def get_estc_stock():
     except Exception as e:
         return jsonify({'error': 'Stock data service error'}), 500
 
+@app.route('/check-patterns', methods=['POST'])
+def check_patterns():
+    """Quick endpoint to check if query has suspicious patterns (for loading message)"""
+    try:
+        if not AGENT_COMPONENTS_AVAILABLE:
+            return jsonify({'patterns_detected': False})
+        
+        data = request.get_json()
+        user_message = data.get('message', '')
+        
+        if not user_message:
+            return jsonify({'patterns_detected': False})
+        
+        # Quick regex check only (no Claude API call)
+        patterns = security_evaluator._find_matching_patterns(user_message)
+        
+        return jsonify({
+            'patterns_detected': bool(patterns)
+        })
+        
+    except Exception as e:
+        return jsonify({'patterns_detected': False})
+
 @app.route('/chat', methods=['POST'])
 def chat():
     try:
@@ -186,6 +209,9 @@ async def process_query_pipeline(user_message, session_id=None):
         security_start = time.time()
         security_result = await security_evaluator.evaluate(user_message)
         security_duration = int((time.time() - security_start) * 1000)
+        
+        # Check if suspicious patterns were detected (for frontend loading message)
+        patterns_detected = bool(security_result.get('patterns_matched', []))
         
         # Log security evaluation
         patterns_matched = security_result.get('pattern_matched', [])

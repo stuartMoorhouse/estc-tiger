@@ -111,14 +111,22 @@ class ElasticsearchGenerator:
         connection_status = retrieved_data.get('connection_status', False)
         search_results = retrieved_data.get('search_results', {})
         
-        base_message = """
+        # Get current date for context
+        from datetime import datetime
+        current_date = datetime.now().strftime('%B %d, %Y')
+        
+        base_message = f"""
         You are an ESTC (Elastic stock) financial analyst helping RSU holders make informed decisions.
+        
+        CURRENT DATE: {current_date}
         
         Your role:
         - Analyze ESTC's financial performance and market position
         - Help with RSU investment decisions and timing
         - Provide clear, actionable insights about ESTC stock
         - Explain market trends and competitive landscape
+        
+        IMPORTANT: Always reference events and dates relative to the current date above. If something was scheduled for "December 2024" and today is 2025, describe it as "launched in December 2024" or "began last December" rather than "will begin" or "is set to begin".
         """
         
         if search_results.get('results'):
@@ -160,6 +168,14 @@ class ElasticsearchGenerator:
         - Be helpful and responsive rather than overly cautious about precision
         - Make reasonable inferences from the data provided
         - Combine training knowledge with retrieved data for complete, actionable analysis
+        
+        Temporal Context Requirements:
+        - CRITICAL: Always interpret dates relative to the current date provided above
+        - If a document mentions "December 2024" and today is 2025, describe it as past tense: "launched in December 2024", "began last December", "started in December 2024"
+        - If a document mentions "Q1 2025" and today is July 2025, describe it as past tense: "in Q1 2025", "earlier this year in Q1"
+        - Use appropriate temporal language: "recently launched", "last quarter", "earlier this year", "last year"
+        - When discussing future events, be clear about the timeline: "scheduled for Q4 2025", "expected by end of 2025"
+        - Never use future tense for past events just because the document was written in the past
         
         Citation Requirements:
         - MANDATORY: After every fact or data point retrieved from the data source, add a citation in square brackets

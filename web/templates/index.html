@@ -20,6 +20,18 @@
             60% { content: '...'; }
             80%, 100% { content: '....'; }
         }
+        
+        #progressive-text p {
+            margin: 0.3em 0;
+            font-size: 0.9em;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-in forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -74,8 +86,25 @@
             addMessage(message, 'user');
             messageInput.value = '';
             
-            // Show thinking indicator
-            const thinkingMessage = addThinkingMessage();
+            // Check for suspicious patterns first (quick regex check)
+            let patternsDetected = false;
+            try {
+                const patternCheck = await fetch('/check-patterns', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                const patternData = await patternCheck.json();
+                patternsDetected = patternData.patterns_detected;
+            } catch (error) {
+                // If pattern check fails, assume normal processing
+                patternsDetected = false;
+            }
+            
+            // Show appropriate thinking indicator
+            const thinkingMessage = addThinkingMessage(patternsDetected);
 
             try {
                 const response = await fetch('/chat', {
@@ -115,17 +144,53 @@
             }
         }
 
-        function addThinkingMessage() {
+        function addThinkingMessage(patternsDetected = false) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message agent-message thinking-message';
             messageDiv.id = 'thinking-indicator';
             
-            messageDiv.innerHTML = `
-                <span class="message-icon">🐅</span>
-                <div class="message-content">
-                    <p>Tiger is thinking about ESTC<span class="dots">...</span></p>
-                </div>
-            `;
+            if (patternsDetected) {
+                // Simple message for suspicious queries
+                messageDiv.innerHTML = `
+                    <span class="message-icon">🐅</span>
+                    <div class="message-content">
+                        <p>This question seems a bit unusual, let me check it<span class="dots">...</span></p>
+                    </div>
+                `;
+            } else {
+                // Progressive messages for normal queries
+                const progressiveMessages = [
+                    "ESTC Tiger is thinking",
+                    "Getting the latest stock price",
+                    "Looking at the historical data"
+                ];
+                
+                messageDiv.innerHTML = `
+                    <span class="message-icon">🐅</span>
+                    <div class="message-content">
+                        <div id="progressive-text">
+                            <p id="progress-line-0">${progressiveMessages[0]}<span class="dots">...</span></p>
+                        </div>
+                    </div>
+                `;
+                
+                // Add progressive messages with delays
+                setTimeout(() => {
+                    const progressDiv = document.getElementById('progressive-text');
+                    if (progressDiv) {
+                        progressDiv.innerHTML += `<p id="progress-line-1">${progressiveMessages[1]}<span class="dots">...</span></p>`;
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }
+                }, 1000);
+                
+                setTimeout(() => {
+                    const progressDiv = document.getElementById('progressive-text');
+                    if (progressDiv) {
+                        progressDiv.innerHTML += `<p id="progress-line-2">${progressiveMessages[2]}<span class="dots">...</span></p>`;
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    }
+                }, 2000);
+            }
 
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
