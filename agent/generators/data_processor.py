@@ -56,18 +56,8 @@ class ElasticsearchGenerator:
             
             # Check if Elasticsearch is connected, return error if not
             if not retrieved_data.get('connection_status', False):
-                # Check if we should include current price phrase even in error case
-                if (retrieved_data.get('finnhub_data') and 
-                    session_id and 
-                    not conversation_manager.has_current_price_been_mentioned(session_id)):
-                    
-                    finnhub_data = retrieved_data.get('finnhub_data', {})
-                    current_price = finnhub_data.get('current_price', 0)
-                    conversation_manager.mark_current_price_mentioned(session_id)
-                    
-                    return f"Based on the current stock price of ${current_price:.2f} [data from finnhub.io API], I cannot provide detailed ESTC analysis due to Elasticsearch connection issues. Please check the connection and try again."
-                else:
-                    return "ERROR: Elasticsearch connection not available. Cannot provide ESTC data analysis without access to the Elasticsearch data source."
+                logger.error("Elasticsearch connection failed - cannot provide ESTC analysis")
+                return "ERROR: Unable to connect to Elasticsearch data source. Please check the connection and try again. I cannot provide ESTC analysis without access to the financial data."
             
             # Build system message with retrieved data and conversation context
             system_message = self._build_system_message(retrieved_data, session_id)
@@ -146,20 +136,13 @@ class ElasticsearchGenerator:
         Use this retrieved data to provide confident, definitive answers based on the actual ESTC information available.
         """
         else:
-            # No data retrieved at all - use static baseline data
+            # No data retrieved - this should not happen if Elasticsearch is connected
+            # Log the issue and use minimal context to explain the problem
             data_context = """
         
-        BASELINE DATA CONTEXT:
-        - Current revenue: $1.48B (+17% YoY) [estc-financial-data, doc-revenue-2024]
-        - Analyst target: $115.74 (35% upside) [estc-analyst-ratings, doc-consensus-target]
-        - Cloud revenue growth: 30% YoY [estc-financial-data, doc-cloud-growth]
-        - GenAI customers: 1,750+ [estc-product-data, doc-genai-adoption]
-        - Operating margin: 12% (non-GAAP) [estc-financial-data, doc-operating-margin]
-        
-        This baseline data provides sufficient context for actionable investment insights.
-        All data above should be cited using the [index_name, document_id] format when used in responses.
-        
-        NOTE: Current stock price should come from Finnhub API data and be cited as [data from finnhub.io API].
+        DATA ACCESS ISSUE:
+        No relevant documents were found in Elasticsearch for this query.
+        This may indicate a search configuration issue or missing data in the indices.
         """
         
         guidelines = """
@@ -309,7 +292,7 @@ class ElasticsearchGenerator:
             CRITICAL CITATION REQUIREMENTS: 
             - MANDATORY: Add citations in square brackets [index_name, document_id] IMMEDIATELY after ANY fact that comes from the retrieved data above
             - MANDATORY: For ALL stock data from Finnhub (current prices, historical data, etc.), add citation [data from finnhub.io API] immediately after the relevant facts
-            - MANDATORY: For ALL fallback stock data when Finnhub fails, add citation [historical estimates (Finnhub API unavailable)] immediately after the relevant facts
+            - MANDATORY: For ALL fallback stock data when Finnhub fails, add citation [historical estimates (Finnhub subscription limitation)] immediately after the relevant facts
             - MANDATORY: For ALL Elasticsearch data (revenue, growth, margins, etc.), add citation [index_name, document_id] immediately after the relevant facts
             - MANDATORY: ALL current stock prices must use Finnhub data and be cited as [data from finnhub.io API] - NEVER use baseline or Elasticsearch data for current prices
             - When referencing historical stock data, ALWAYS include specific stock prices and dates WITH citations
@@ -342,7 +325,7 @@ class ElasticsearchGenerator:
             if not connection_status:
                 data_section = "\n\nERROR: Elasticsearch connection not available. Cannot provide ESTC data analysis."
             else:
-                data_section = "\n\nNOTE: No specific documents found for this query. Using general ESTC knowledge"
+                data_section = "\n\nWARNING: No relevant documents found in Elasticsearch for this query. This may indicate a search configuration issue."
             
             # Add Finnhub data if available even without elasticsearch data
             if finnhub_data:
@@ -399,28 +382,16 @@ class ElasticsearchGenerator:
             
             instruction = f"""
             
-            Please provide a confident, actionable response about ESTC based on the baseline data provided in the system message.
+            IMPORTANT: You cannot provide ESTC analysis because no relevant data was found in Elasticsearch.
+            Explain that you cannot answer the question without access to the ESTC financial and market data.
             Consider the conversation context if this is a follow-up question.{context_reminder}
-            Do not use hedging language about limited data - the baseline data is sufficient for meaningful analysis.
+            
+            If Finnhub stock data is available, you may mention current stock prices but clearly state that detailed analysis requires Elasticsearch data.
             
             CRITICAL CITATION REQUIREMENTS: 
             - MANDATORY: For ALL stock data from Finnhub (current prices, historical data, etc.), add citation [data from finnhub.io API] immediately after the relevant facts
-            - MANDATORY: For ALL fallback stock data when Finnhub fails, add citation [historical estimates (Finnhub API unavailable)] immediately after the relevant facts
-            - MANDATORY: ALL current stock prices must use Finnhub data and be cited as [data from finnhub.io API]
-            - When referencing historical stock data, ALWAYS include specific stock prices and dates WITH citations
-            - When correlating product events with stock performance, MUST include the stock price at that time WITH citations
-            - If Finnhub historical data is not available, use the fallback historical data provided (from historical estimates) WITH citations
-            - Do not cite general market knowledge or training data that you already knew
-            - Be responsive and helpful - avoid overly cautious language about accuracy
-            - For each product event mentioned, provide an estimated stock price for that timeframe WITH appropriate citations
-            - Reference previous exchanges when answering follow-up questions
-            - CRITICAL: Every product event must be accompanied by a stock price estimate [data from finnhub.io API] or reasonable estimate based on historical data
-            - When Finnhub API fails, use the historical estimates to provide reasonable stock price estimates for historical periods
-            - Always include specific stock prices and dates for product events, even if from historical estimates
-            
-            EXAMPLES OF PROPER CITATIONS:
-            - "Current stock price is $85.71 [data from finnhub.io API]"
-            - "ESTC is trading at $85.71 [data from finnhub.io API]"
+            - Do not make up financial metrics or data - only use what's available from Finnhub
+            - Be transparent about the data limitations
             """
         
         return base_message + data_section + instruction

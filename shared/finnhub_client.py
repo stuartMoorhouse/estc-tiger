@@ -207,7 +207,7 @@ class FinnhubClient:
             'price_data': price_data,
             'date_range': f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
             'years': years,
-            'source': 'historical estimates (Finnhub API unavailable)'
+            'source': 'historical estimates (Finnhub subscription limitation)'
         }
     
     def _interpolate_price(self, target_date: str, milestones: Dict[str, float]) -> float:

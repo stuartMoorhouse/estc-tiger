@@ -24,14 +24,18 @@ class ElasticsearchService:
         self.client = None
         self._init_client()
         
-        # ESTC data index mapping
+        # ESTC data index mapping - using actual v2 vector-enhanced indices found in cluster
         self.index_mapping = {
-            'financial': ['estc-financial-data', 'estc-earnings', 'estc-revenue'],
-            'stock': ['estc-stock-data', 'estc-prices', 'estc-analyst-ratings'],
-            'competitive': ['estc-competitive-analysis', 'estc-market-comparison'],
-            'rsu': ['estc-rsu-data', 'estc-equity-compensation'],
-            'general': ['estc-general-data', 'estc-company-info', 'estc-news']
+            'financial': ['estc-financial-data-v2', 'estc-quarterly-data-v2', 'estc-guidance-data-v2'],
+            'stock': ['estc-stock-data-v2', 'estc-analyst-data-v2', 'estc-market-events-v2'],
+            'competitive': ['estc-competitive-data-v2', 'estc-scenario-analysis-v2'],
+            'rsu': ['estc-rsu-relevant-v2', 'estc-customer-metrics-v2'],
+            'general': ['estc-data-metadata-v2', 'estc-product-milestones-v2', 'estc-technology-trends-v2', 
+                       'estc-partnership-data-v2', 'estc-risk-factors-v2', 'estc-acquisition-history-v2']
         }
+        
+        # Enable RRF if Elasticsearch version supports it (8.8+)
+        self.use_rrf = True
     
     
     
@@ -134,37 +138,105 @@ class ElasticsearchService:
         # Get indices for the query type
         indices = self.index_mapping.get(query_type, self.index_mapping['general'])
         
-        # Build search query
-        search_query = {
-            "query": {
-                "bool": {
-                    "should": [
-                        {
-                            "multi_match": {
-                                "query": " ".join(search_terms),
-                                "fields": ["title^2", "content", "description", "summary"],
-                                "type": "best_fields",
-                                "fuzziness": "AUTO"
+        # Check Elasticsearch version for RRF support (8.8+)
+        es_version = None
+        try:
+            info = self.client.info()
+            es_version = info.get("version", {}).get("number", "0.0.0")
+            major, minor = map(int, es_version.split(".")[:2])
+            self.use_rrf = major > 8 or (major == 8 and minor >= 8)
+        except:
+            self.use_rrf = False
+        
+        query_text = " ".join(search_terms)
+        
+        # Build search query based on RRF availability
+        if self.use_rrf:
+            # Use modern retriever syntax for Elasticsearch 9.0+
+            search_query = {
+                "retriever": {
+                    "rrf": {
+                        "retrievers": [
+                            # Lexical search retriever
+                            {
+                                "standard": {
+                                    "query": {
+                                        "bool": {
+                                            "should": [
+                                                {
+                                                    "multi_match": {
+                                                        "query": query_text,
+                                                        "fields": ["title^2", "content", "description", "summary"],
+                                                        "type": "best_fields",
+                                                        "fuzziness": "AUTO"
+                                                    }
+                                                },
+                                                {
+                                                    "terms": {
+                                                        "keywords": search_terms
+                                                    }
+                                                }
+                                            ],
+                                            "minimum_should_match": 1
+                                        }
+                                    }
+                                }
+                            },
+                            # Sparse vector search retriever using ELSER (modern syntax)
+                            {
+                                "standard": {
+                                    "query": {
+                                        "sparse_vector": {
+                                            "field": "ml.tokens",
+                                            "inference_id": ".elser-2-elasticsearch",
+                                            "query": query_text,
+                                            "prune": True
+                                        }
+                                    }
+                                }
                             }
-                        },
-                        {
-                            "terms": {
-                                "keywords": search_terms
-                            }
-                        }
-                    ],
-                    "minimum_should_match": 1
+                        ],
+                        "rank_window_size": 100,
+                        "rank_constant": 60
+                    }
+                },
+                "size": limit,
+                "_source": {
+                    "excludes": ["raw_data", "full_text", "ml.tokens", "content_for_vector"]
                 }
-            },
-            "sort": [
-                {"_score": {"order": "desc"}},
-                {"date": {"order": "desc", "missing": "_last"}}
-            ],
-            "size": limit,
-            "_source": {
-                "excludes": ["raw_data", "full_text"]  # Exclude large fields
             }
-        }
+        else:
+            # Fallback to standard bool query for older versions
+            search_query = {
+                "query": {
+                    "bool": {
+                        "should": [
+                            {
+                                "multi_match": {
+                                    "query": query_text,
+                                    "fields": ["title^2", "content", "description", "summary"],
+                                    "type": "best_fields",
+                                    "fuzziness": "AUTO"
+                                }
+                            },
+                            {
+                                "terms": {
+                                    "keywords": search_terms
+                                }
+                            }
+                        ],
+                        "minimum_should_match": 1
+                    }
+                },
+                "sort": [
+                    {"_score": {"order": "desc"}},
+                    {"date": {"order": "desc", "missing": "_last"}}
+                ],
+                "size": limit,
+                "_source": {
+                    "excludes": ["raw_data", "full_text", "ml.tokens", "content_for_vector"]
+                }
+            }
         
         results = []
         total_hits = 0
@@ -172,11 +244,20 @@ class ElasticsearchService:
         # Search across all relevant indices
         for index in indices:
             try:
-                response = self.client.search(
-                    index=index,
-                    body=search_query,
-                    ignore_unavailable=True
-                )
+                if self.use_rrf:
+                    # Use new search endpoint for RRF
+                    response = self.client.search(
+                        index=index,
+                        body=search_query,
+                        ignore_unavailable=True
+                    )
+                else:
+                    # Standard search
+                    response = self.client.search(
+                        index=index,
+                        body=search_query,
+                        ignore_unavailable=True
+                    )
                 
                 hits = response.get("hits", {})
                 total_hits += hits.get("total", {}).get("value", 0)
@@ -203,7 +284,9 @@ class ElasticsearchService:
             "total": total_hits,
             "query_type": query_type,
             "search_terms": search_terms,
-            "indices_searched": indices
+            "indices_searched": indices,
+            "search_method": "RRF hybrid search" if self.use_rrf else "Standard lexical search",
+            "es_version": es_version
         }
     
     def get_document_by_id(self, index: str, doc_id: str) -> Dict[str, Any]:

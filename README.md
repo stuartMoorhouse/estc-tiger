@@ -4,35 +4,15 @@ ESTC Tiger is an intelligent chatbot designed to help Elastic (ESTC) RSU holders
 
 <img src="screenshot.png" alt="ESTC Tiger Interface" width="600">
 
-## Features
+## Installation & Setup
 
-- **Conversation Memory**: Maintains context across multiple exchanges for natural dialogue
-- **Source Citations**: All data-driven insights include citations to specific documents
-- **Real-Time Stock Data**: Integrates with Finnhub API for current stock prices and market data
-- **Comprehensive Data**: Combines AI training knowledge with real-time Elasticsearch data
-- **Security-First**: Built with robust security evaluators to prevent malicious prompts
-- **RSU-Focused**: Specifically designed for RSU holders with relevant metrics and advice
-
-## Architecture
-
-The app implements a multi-source RAG pipeline with security validation:
-
-```
-User Query → Security Evaluator → Generator (Claude + ES + Finnhub) → Output Evaluator → Response
-     ↓              ↓                        ↓                                ↓
-  Input          Block/Allow       Elasticsearch Query + Finnhub API        Security Scan
-  Validation     Decision          Financial Data + Stock Prices            (Sensitive Data)
-```
-
-## Prerequisites
+### Prerequisites
 
 - Python 3.12 or higher
 - UV package manager
 - Anthropic API key (required)
 - Elasticsearch cluster (required - app will not function without it)
 - Finnhub API key (optional - for real-time stock data, falls back to historical estimates)
-
-## Installation & Setup
 
 ### 1. Clone the Repository
 
@@ -77,17 +57,19 @@ ELASTICSEARCH_PASSWORD=your_password
 
 #### Option A: Local Elasticsearch with Docker
 ```bash
-# Start Elasticsearch with Docker
+# Start Elasticsearch with Docker (requires version 9.0+ for RRF and modern sparse vector support)
 docker run -d \
   --name elasticsearch \
   -p 9200:9200 \
   -e "discovery.type=single-node" \
   -e "xpack.security.enabled=false" \
-  elasticsearch:8.11.0
+  elasticsearch:9.0.0
 
 # Verify it's running (should return cluster info)
 curl http://localhost:9200
 ```
+
+**Note**: Elasticsearch 9.0+ is required for RRF hybrid search and modern sparse vector syntax.
 
 #### Option B: Elastic Cloud
 1. Sign up for [Elastic Cloud](https://cloud.elastic.co)
@@ -124,6 +106,123 @@ uv run python web/app.py
 
 The app will start on `http://localhost:5000`
 
+## Project Structure
+
+```
+estc-tiger/
+├── agent/                     # Core AI components
+│   ├── evaluators/           # Security and output validation
+│   │   ├── security_evaluator.py    # Input validation & jailbreak detection
+│   │   └── output_evaluator.py      # Response security scanning
+│   └── generators/           # AI response generation
+│       └── data_processor.py  # Multi-source data processing (Elasticsearch + Finnhub + Claude)
+├── shared/                   # Shared utilities
+│   ├── conversation_memory.py    # Session & conversation management
+│   ├── ecs_logger.py            # Structured logging (ECS format)
+│   ├── elasticsearch_client.py   # Elasticsearch service wrapper
+│   └── finnhub_client.py        # Stock data API client
+├── web/                     # Flask web application
+│   ├── app.py              # Main web server & API endpoints
+│   ├── static/            # CSS, images, client assets
+│   └── templates/         # HTML templates
+├── estc_es9_bulk.json     # Financial dataset for Elasticsearch
+└── pyproject.toml         # UV dependencies & project config
+```
+
+## How It Works
+
+### Architecture Overview
+
+The app implements a multi-source RAG pipeline with advanced semantic search:
+
+```
+User Query → Security Evaluator → Generator (Claude + ES + Finnhub) → Output Evaluator → Response
+     ↓              ↓                        ↓                                ↓
+  Input          Block/Allow       RRF Hybrid Search + Finnhub API         Security Scan
+  Validation     Decision          (Lexical + Vector) + Stock Prices       (Sensitive Data)
+```
+
+### Advanced Elasticsearch Search
+
+ESTC Tiger uses **Elasticsearch 9.0 with RRF (Reciprocal Rank Fusion)** to combine multiple search strategies for optimal relevance:
+
+#### RRF Hybrid Search Query
+```json
+{
+  "retriever": {
+    "rrf": {
+      "retrievers": [
+        {
+          "standard": {
+            "query": {
+              "bool": {
+                "should": [
+                  {
+                    "multi_match": {
+                      "query": "analyst target rating",
+                      "fields": ["title^2", "content", "description", "summary"],
+                      "type": "best_fields",
+                      "fuzziness": "AUTO"
+                    }
+                  },
+                  {
+                    "terms": {
+                      "keywords": ["analyst", "target", "rating"]
+                    }
+                  }
+                ],
+                "minimum_should_match": 1
+              }
+            }
+          }
+        },
+        {
+          "standard": {
+            "query": {
+              "sparse_vector": {
+                "field": "ml.tokens",
+                "inference_id": ".elser-2-elasticsearch",
+                "query": "analyst target rating",
+                "prune": true
+              }
+            }
+          }
+        }
+      ],
+      "rank_window_size": 100,
+      "rank_constant": 60
+    }
+  }
+}
+```
+
+#### Search Strategy Breakdown:
+1. **Lexical Search**: Traditional keyword matching with fuzzy search and field boosting
+2. **Semantic Search**: ELSER (Elastic Learned Sparse EncodeR) sparse vector search for conceptual understanding
+3. **RRF Fusion**: Combines both result sets using Reciprocal Rank Fusion algorithm for optimal relevance
+
+#### Vector-Enhanced Indices:
+- **16 specialized indices** with ELSER sparse vector embeddings
+- **40 total documents** covering financial data, analyst reports, market events, and competitive analysis
+- **Automatic inference pipeline** generates sparse vectors at index time using `.elser-2-elasticsearch` model
+
+### Core Components
+
+**SecurityEvaluator** (`agent/evaluators/security_evaluator.py`)
+- Regex-based jailbreak detection, query length limits, special character filtering
+- Returns: `{"safe": True/False, "reason": "explanation"}`
+
+**DataProcessor** (`agent/generators/data_processor.py`) 
+- Multi-source data processing: Elasticsearch (financial docs) + Finnhub (stock data) + Claude (Sonnet)
+- Query analysis, data retrieval, response generation with citations
+- Returns: Generated response string
+
+**OutputEvaluator** (`agent/evaluators/output_evaluator.py`)**
+- Security-only scanning for sensitive data (passwords, API keys, IPs)
+- **Note**: Does NOT validate response quality or accuracy
+- Returns: `{"approved": True/False, "feedback": "explanation"}`
+
+
 ## Usage
 
 1. **Open your browser** and navigate to `http://localhost:5000`
@@ -142,15 +241,75 @@ The app will start on `http://localhost:5000`
 
 ## Data Sources
 
-The app includes comprehensive ESTC financial data from:
-- SEC filings and earnings reports
-- Analyst ratings and price targets
-- Historical stock performance (2018-2025)
-- Competitive analysis vs. Datadog, Splunk
-- RSU vesting schedules and tax implications
-- Product milestones and market positioning
+The app includes comprehensive ESTC financial data stored in **vector-enhanced Elasticsearch indices**:
 
-**Data Coverage**: 150+ documents across 25+ indices spanning 7 years since IPO
+### Core Data Categories:
+- **Financial Data**: SEC filings, earnings reports, quarterly results, revenue growth metrics
+- **Analyst Intelligence**: Consensus targets, ratings, market events, competitive positioning  
+- **Stock Performance**: Historical data (2018-2025), real-time prices via Finnhub API
+- **Market Analysis**: Competitive analysis vs. Datadog/Splunk, acquisition history, partnerships
+- **RSU Intelligence**: Vesting schedules, tax implications, customer metrics, scenario analysis
+- **Product Insights**: Technology milestones, product roadmap, risk factors
+
+### Vector-Enhanced Architecture:
+- **40 documents** across **16 specialized indices** (all with `-v2` vector enhancement)
+- **ELSER sparse vector embeddings** for semantic search capabilities
+- **Automatic inference pipeline** using `.elser-2-elasticsearch` model
+- **RRF hybrid search** combining lexical and semantic retrieval for optimal relevance
+
+**Index Coverage**: `estc-financial-data-v2`, `estc-analyst-data-v2`, `estc-stock-data-v2`, `estc-competitive-data-v2`, `estc-rsu-relevant-v2`, and 11 additional specialized indices spanning 7 years since IPO
+
+## Dynamic Query Behavior
+
+### How Elasticsearch Queries Adapt to User Input
+
+#### 🔄 Dynamic Components:
+
+**1. Query Text Changes**
+```python
+query_text = " ".join(search_terms)  # User's words become the search
+
+# Both retrievers use the actual user query:
+"multi_match": {
+    "query": query_text,  # "analyst target rating" or "revenue growth" etc.
+},
+"sparse_vector": {
+    "query": query_text,  # Same user text for semantic search
+}
+```
+
+**2. Index Selection Changes**
+```python
+# Different user queries search different indices based on intent:
+'financial': ['estc-financial-data-v2', 'estc-quarterly-data-v2', 'estc-guidance-data-v2'],
+'stock': ['estc-stock-data-v2', 'estc-analyst-data-v2', 'estc-market-events-v2'],
+'competitive': ['estc-competitive-data-v2', 'estc-scenario-analysis-v2'],
+'rsu': ['estc-rsu-relevant-v2', 'estc-customer-metrics-v2'],
+'general': ['estc-data-metadata-v2', 'estc-product-milestones-v2', ...]
+```
+
+**3. Search Terms Extraction**
+```python
+"terms": {
+    "keywords": search_terms  # Dynamic list extracted from user input
+}
+```
+
+#### 🎯 Query Examples:
+
+| User Input | Query Text | Category | Indices Searched | Search Terms |
+|------------|------------|----------|------------------|--------------|
+| "What's ESTC's revenue growth?" | "revenue growth" | `financial` | `estc-financial-data-v2`, `estc-quarterly-data-v2` | `revenue`, `growth`, `estc` |
+| "Should I sell my RSUs?" | "sell RSUs" | `rsu` | `estc-rsu-relevant-v2`, `estc-customer-metrics-v2` | `sell`, `rsu`, `estc` |
+| "How does ESTC compare to Datadog?" | "ESTC compare Datadog" | `competitive` | `estc-competitive-data-v2`, `estc-scenario-analysis-v2` | `estc`, `compare`, `datadog` |
+
+#### 🔧 What Stays Consistent:
+- **RRF structure** (always 2 retrievers: lexical + semantic)
+- **Query field names** (`title^2`, `content`, `description`, `summary`)
+- **RRF parameters** (`rank_window_size: 100`, `rank_constant: 60`)
+- **ELSER model** (`.elser-2-elasticsearch`)
+
+The system provides **intelligent query routing** and **dynamic content matching** while maintaining the advanced RRF hybrid search architecture.
 
 ## Troubleshooting
 
@@ -179,48 +338,6 @@ The app includes comprehensive ESTC financial data from:
 - **Empty responses**: Usually indicates missing Elasticsearch data
 - **Slow responses**: Check Elasticsearch query performance
 - **Memory issues**: Large conversation histories may cause memory usage spikes
-
-## Development
-
-### Project Structure
-```
-estc-tiger/
-├── agent/                     # Core AI components
-│   ├── evaluators/           # Security and output validation
-│   │   ├── security_evaluator.py    # Input validation & jailbreak detection
-│   │   └── output_evaluator.py      # Response security scanning
-│   └── generators/           # AI response generation
-│       └── data_processor.py  # Multi-source data processing (Elasticsearch + Finnhub + Claude)
-├── shared/                   # Shared utilities
-│   ├── conversation_memory.py    # Session & conversation management
-│   ├── ecs_logger.py            # Structured logging (ECS format)
-│   ├── elasticsearch_client.py   # Elasticsearch service wrapper
-│   └── finnhub_client.py        # Stock data API client
-├── web/                     # Flask web application
-│   ├── app.py              # Main web server & API endpoints
-│   ├── static/            # CSS, images, client assets
-│   └── templates/         # HTML templates
-├── estc_es9_bulk.json     # Financial dataset for Elasticsearch
-└── pyproject.toml         # UV dependencies & project config
-```
-
-## Technical Architecture
-
-### Core Components
-
-**SecurityEvaluator** (`agent/evaluators/security_evaluator.py`)
-- Regex-based jailbreak detection, query length limits, special character filtering
-- Returns: `{"safe": True/False, "reason": "explanation"}`
-
-**DataProcessor** (`agent/generators/data_processor.py`) 
-- Multi-source data processing: Elasticsearch (financial docs) + Finnhub (stock data) + Claude (Sonnet)
-- Query analysis, data retrieval, response generation with citations
-- Returns: Generated response string
-
-**OutputEvaluator** (`agent/evaluators/output_evaluator.py`)**
-- Security-only scanning for sensitive data (passwords, API keys, IPs)
-- **Note**: Does NOT validate response quality or accuracy
-- Returns: `{"approved": True/False, "feedback": "explanation"}`
 
 ## Disclaimer
 
