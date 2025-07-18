@@ -106,6 +106,22 @@ uv run python web/app.py
 
 The app will start on `http://localhost:5000`
 
+## Usage
+
+1. **Open your browser** and navigate to `http://localhost:5000`
+2. **Start chatting** with ESTC Tiger about:
+   - ESTC financial performance and metrics
+   - Stock price analysis and trends
+   - RSU timing and tax strategies
+   - Competitive landscape analysis
+   - Market conditions and outlook
+
+3. **Example questions**:
+   - "What's ESTC's current revenue growth rate?"
+   - "How does ESTC compare to Datadog?"
+   - "Should I sell my RSUs now or wait?"
+   - "What are the analyst price targets for ESTC?"
+
 ## Project Structure
 
 ```
@@ -222,22 +238,6 @@ ESTC Tiger uses **Elasticsearch 9.0 with RRF (Reciprocal Rank Fusion)** to combi
 - **Note**: Does NOT validate response quality or accuracy
 - Returns: `{"approved": True/False, "feedback": "explanation"}`
 
-
-## Usage
-
-1. **Open your browser** and navigate to `http://localhost:5000`
-2. **Start chatting** with ESTC Tiger about:
-   - ESTC financial performance and metrics
-   - Stock price analysis and trends
-   - RSU timing and tax strategies
-   - Competitive landscape analysis
-   - Market conditions and outlook
-
-3. **Example questions**:
-   - "What's ESTC's current revenue growth rate?"
-   - "How does ESTC compare to Datadog?"
-   - "Should I sell my RSUs now or wait?"
-   - "What are the analyst price targets for ESTC?"
 
 ## Data Sources
 
