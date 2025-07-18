@@ -215,7 +215,7 @@ ESTC Tiger uses **Elasticsearch 9.0 with RRF (Reciprocal Rank Fusion)** to combi
 #### Search Strategy Breakdown:
 1. **Lexical Search**: Traditional keyword matching with fuzzy search and field boosting
 2. **Semantic Search**: ELSER (Elastic Learned Sparse EncodeR) sparse vector search for conceptual understanding
-3. **RRF Fusion**: Combines both result sets using Reciprocal Rank Fusion algorithm for optimal relevance
+3. **RRF**: Combines both result sets using Reciprocal Rank Fusion algorithm for optimal relevance
 
 #### Vector-Enhanced Indices:
 - **16 specialized indices** with ELSER sparse vector embeddings
