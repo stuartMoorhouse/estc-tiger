@@ -98,7 +98,34 @@ curl -X POST "${ELASTICSEARCH_URL}/_bulk" \
 curl "${ELASTICSEARCH_URL}/_cat/indices/estc-*?v"
 ```
 
-### 6. Run the Application
+### 6. Generate Vector Embeddings (Required for Full Search Capability)
+
+After loading the base data, generate ELSER sparse vector embeddings for enhanced semantic search:
+
+```bash
+# First, ensure ELSER model is deployed in your Elasticsearch cluster
+# You can do this via Kibana → Machine Learning → Model Management → Deploy .elser-2-elasticsearch
+
+# Run the reindexing script to create v2 indices with ELSER embeddings
+python3 bulk_reindex_estc.py
+
+# This will:
+# 1. Check that ELSER pipeline exists (creates it if missing)
+# 2. Create new *-v2 indices with sparse vector mappings
+# 3. Reindex all data with automatically generated content_for_vector fields
+# 4. Generate ELSER sparse vector embeddings for semantic search
+# 5. Verify document counts match between original and v2 indices
+
+# Verify v2 indices were created with embeddings
+curl "${ELASTICSEARCH_URL}/_cat/indices/estc-*-v2?v"
+```
+
+**Note**: The v2 indices with ELSER embeddings enable hybrid search combining:
+- **Lexical search**: Traditional keyword matching
+- **Semantic search**: ELSER sparse vector search for conceptual understanding
+- **RRF fusion**: Combines both for optimal relevance
+
+### 7. Run the Application
 
 ```bash
 uv run python web/app.py
